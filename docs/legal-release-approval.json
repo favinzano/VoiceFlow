@@ -1,6 +1,6 @@
 {
   "status": "owner_override",
-  "appVersion": "1.2.1",
+  "appVersion": "1.2.2",
   "termsVersion": "2026-07-17-beta-1",
   "legalEmail": "legal@felipeavinzano.com",
   "legalEmailCheck": {
@@ -32,9 +32,9 @@
   },
   "ownerOverride": {
     "authorizedBy": "Felipe Avinzano",
-    "authorizedAt": "2026-07-22T14:15:10.802Z",
-    "scopeVersion": "1.2.1",
-    "reason": "El propietario autoriza publicar 1.2.1 (revierte whisper.cpp por regresión de velocidad; motor local transformers.js/onnxruntime con modelo Small por defecto) como latest y asume la responsabilidad por los requisitos externos aún pendientes.",
+    "authorizedAt": "2026-08-20T02:23:01.686Z",
+    "scopeVersion": "1.2.2",
+    "reason": "El propietario autoriza publicar 1.2.2 (firma ad-hoc del build de macOS para corregir el error 'está dañado' en Apple Silicon; sigue sin notarización Apple ni Authenticode) como latest y asume la responsabilidad por los requisitos externos aún pendientes.",
     "acknowledgesIncompleteLegalReview": true,
     "acknowledgesUnverifiedOperationalRequirements": true,
     "acknowledgesUnsignedArtifacts": true,
