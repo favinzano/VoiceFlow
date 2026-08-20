@@ -21,9 +21,9 @@ const expected = {
   helperBaseName: 'FelipeAvinzano.VoiceFlow.PasteHelper',
   repository: {
     owner: 'favinzano',
-    name: 'felipe-avinzanovoiceflow',
-    slug: 'favinzano/felipe-avinzanovoiceflow',
-    url: 'https://github.com/favinzano/felipe-avinzanovoiceflow',
+    name: 'VoiceFlow',
+    slug: 'favinzano/VoiceFlow',
+    url: 'https://github.com/favinzano/VoiceFlow',
   },
   legacyDataNames: [
     'NextStepAI Voice',

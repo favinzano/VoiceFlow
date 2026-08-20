@@ -27,8 +27,8 @@ Para GitHub Actions:
 Configura los secretos sin imprimir su contenido:
 
 ```powershell
-gh secret set SIGNING_PFX_BASE64 --repo favinzano/felipe-avinzanovoiceflow
-gh secret set SIGNING_PFX_PASSWORD --repo favinzano/felipe-avinzanovoiceflow
+gh secret set SIGNING_PFX_BASE64 --repo favinzano/VoiceFlow
+gh secret set SIGNING_PFX_PASSWORD --repo favinzano/VoiceFlow
 ```
 
 El workflow `Signed Windows Release` valida que ambos secretos existan antes de

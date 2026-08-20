@@ -330,7 +330,7 @@ jobs:
             release-assets/macos/latest-mac.yml \
             release-assets/linux/*.AppImage \
             release-assets/linux/latest-linux.yml \
-            --repo "favinzano/felipe-avinzanovoiceflow" \
+            --repo "favinzano/VoiceFlow" \
             --title "felipe avinzano VoiceFlow $RELEASE_TAG" \
             --generate-notes \
             --latest \

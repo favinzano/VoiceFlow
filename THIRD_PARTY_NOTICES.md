@@ -140,7 +140,7 @@ pueden obtenerse y reconstruirse desde sus proyectos originales:
 Para solicitar una copia de los textos de licencia incluidos con felipe
 avinzano VoiceFlow `1.1.11` o reportar una omisión, abre una incidencia en:
 
-<https://github.com/favinzano/felipe-avinzanovoiceflow/issues>
+<https://github.com/favinzano/VoiceFlow/issues>
 
 ## Exclusión De Garantías
 

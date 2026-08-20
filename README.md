@@ -6,7 +6,7 @@ Aplicación de escritorio multiplataforma (Windows, macOS y Linux) para converti
 
 ## Instalación
 
-Los instaladores de cada versión están en [Releases](https://github.com/favinzano/felipe-avinzanovoiceflow/releases/latest):
+Los instaladores de cada versión están en [Releases](https://github.com/favinzano/VoiceFlow/releases/latest):
 
 | Plataforma | Instalador | Notas |
 |---|---|---|
@@ -60,4 +60,4 @@ La versión `1.2.2` es la versión actual para Windows x64. La misma versión de
 
 ## Soporte
 
-Reporta incidencias en `https://github.com/favinzano/felipe-avinzanovoiceflow/issues`. Los diagnósticos copiados desde la aplicación no incluyen transcripciones.
+Reporta incidencias en `https://github.com/favinzano/VoiceFlow/issues`. Los diagnósticos copiados desde la aplicación no incluyen transcripciones.
