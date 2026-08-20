@@ -669,7 +669,7 @@ async function processAudio(audio, source = "button", sessionContext = {}) {
     finishOverlay("error", "No fue posible completar la transcripción.");
   } finally {
     processing = false;
-    setStatus("idle", "Haz clic o usa Ctrl + Shift + Espacio.");
+    setStatus("idle", `Haz clic o usa ${voiceAPI.runtime.platform === "darwin" ? "Cmd" : "Ctrl"} + Shift + Espacio.`);
   }
 }
 
@@ -1167,6 +1167,8 @@ async function initializeApp() {
   await updateMicrophones();
   const modifier = voiceAPI.runtime.platform === "darwin" ? "Cmd" : "Ctrl";
   setStatus("idle", `Haz clic o usa ${modifier} + Shift + Espacio.`);
+  const primaryShortcutLabel = document.getElementById("primaryShortcutLabel");
+  if (primaryShortcutLabel) primaryShortcutLabel.textContent = `${modifier} + Shift + Espacio`;
   document.documentElement.dataset.voiceflowInitialized = "true";
   if (perfDefaultsApplied) {
     persistState();

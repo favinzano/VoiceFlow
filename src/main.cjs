@@ -1002,7 +1002,11 @@ app.whenReady().then(async () => {
       return offlinePack?.directory || ensureModelCache(userDataPath, profileId);
     },
     loadModelWithRetry,
-    allowRemoteModels: false,
+    // Local-first: transformers.js siempre prefiere el modelo ya cacheado; solo
+    // descarga (una vez, desde Hugging Face) cuando el modelo no existe en la
+    // máquina. Necesario para provisionar el modelo en instalaciones nuevas
+    // (el .onnx no se empaqueta). El audio del usuario nunca sale del equipo.
+    allowRemoteModels: true,
     onDownloadState: setModelDownloadActive,
     onProgress: (progress) => {
       if (!mainWindow || mainWindow.isDestroyed()) return;

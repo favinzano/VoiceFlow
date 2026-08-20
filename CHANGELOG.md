@@ -8,6 +8,13 @@
 
 Todos los cambios relevantes de felipe avinzano VoiceFlow se documentan en este archivo.
 
+## [1.2.3] - 2026-08-20
+
+### Corregido
+
+- Corregida la provisión del modelo en instalaciones nuevas: desde 1.1.10 la descarga del modelo estaba desactivada (`allowRemoteModels: false`) y, como el modelo no se empaqueta en el instalador, una máquina limpia (p. ej. un Mac recién instalado) no podía transcribir ("El paquete del modelo local no está instalado o está incompleto"). Se restaura la descarga **local-first**: transformers.js usa el modelo ya cacheado y solo lo descarga una vez, desde Hugging Face, cuando falta. El audio del usuario sigue sin salir del equipo.
+- Corregida la etiqueta del atajo en macOS: la interfaz mostraba "Ctrl + Shift + Espacio" en textos estáticos aunque en Mac el atajo real es ⌘. Ahora la etiqueta principal y el estado inicial muestran "Cmd" en macOS.
+
 ## [1.2.2] - 2026-08-19
 
 ### Corregido
