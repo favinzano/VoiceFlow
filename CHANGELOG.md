@@ -8,6 +8,12 @@
 
 Todos los cambios relevantes de felipe avinzano VoiceFlow se documentan en este archivo.
 
+## [1.2.2] - 2026-08-19
+
+### Corregido
+
+- Corregido el error "está dañado y no puede abrirse" del `.app` de macOS en Apple Silicon (arm64). El build salía sin ninguna firma, y macOS exige al menos una firma para ejecutar binarios arm64. Ahora electron-builder aplica una **firma ad-hoc** (`mac.identity: "-"`) a los bundles arm64 y x64. La app deja de reportarse como dañada; en la primera apertura mostrará el aviso normal de "desarrollador no identificado" (clic derecho → Abrir), ya que sigue sin estar notarizada por Apple.
+
 ## [1.2.1] - 2026-07-22
 
 ### Corregido
