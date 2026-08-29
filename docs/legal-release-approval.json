@@ -1,6 +1,6 @@
 {
   "status": "owner_override",
-  "appVersion": "1.2.4",
+  "appVersion": "1.2.5",
   "termsVersion": "2026-07-17-beta-1",
   "legalEmail": "legal@felipeavinzano.com",
   "legalEmailCheck": {
@@ -32,9 +32,9 @@
   },
   "ownerOverride": {
     "authorizedBy": "Felipe Avinzano",
-    "authorizedAt": "2026-08-29T02:09:53.044Z",
-    "scopeVersion": "1.2.4",
-    "reason": "El propietario autoriza publicar 1.2.4 (empaqueta el binario nativo de sharp para macOS Intel/x64 que faltaba y hacía fallar la transcripción; sigue sin notarización Apple ni Authenticode) como latest y asume la responsabilidad por los requisitos externos aún pendientes.",
+    "authorizedAt": "2026-08-29T02:40:22.578Z",
+    "scopeVersion": "1.2.5",
+    "reason": "El propietario autoriza publicar 1.2.5 (aviso de actualización al iniciar y flujo de update adaptado por plataforma: auto-instalación en Windows, aviso + descarga guiada en macOS por la firma ad-hoc; sigue sin notarización Apple ni Authenticode) como latest y asume la responsabilidad por los requisitos externos aún pendientes.",
     "acknowledgesIncompleteLegalReview": true,
     "acknowledgesUnverifiedOperationalRequirements": true,
     "acknowledgesUnsignedArtifacts": true,
