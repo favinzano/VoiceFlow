@@ -1,6 +1,6 @@
 {
     "name": "felipe-avinzanovoiceflow",
-    "version": "1.2.5",
+    "version": "1.2.6",
     "description": "felipe avinzano VoiceFlow - dictado privado y local para Windows, macOS y Linux",
     "author": "Felipe Avinzano",
     "license": "SEE LICENSE IN LICENSE.md",
@@ -139,6 +139,7 @@
             ]
         },
         "mac": {
+            "icon": "assets/app-icon.png",
             "extendInfo": {
                 "NSMicrophoneUsageDescription": "VoiceFlow necesita acceso al micrófono para transcribir tu voz localmente. El audio no se envía a servidores."
             },

@@ -12,7 +12,7 @@ async function build() {
   )));
 
   await Promise.all([
-    sharp(source).resize(512, 512).png().toFile(path.join(root, "assets", "app-icon.png")),
+    sharp(source).resize(1024, 1024).png().toFile(path.join(root, "assets", "app-icon.png")),
     sharp(source).resize(64, 64).png().toFile(path.join(root, "assets", "app-icon-64.png")),
     sharp(source).resize(32, 32).png().toFile(path.join(root, "assets", "app-icon-32.png"))
   ]);

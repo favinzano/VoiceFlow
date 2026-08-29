@@ -8,6 +8,12 @@
 
 Todos los cambios relevantes de felipe avinzano VoiceFlow se documentan en este archivo.
 
+## [1.2.6] - 2026-08-29
+
+### Corregido
+
+- Corregido el ícono de la aplicación en **macOS**: el build no definía `mac.icon` ni generaba un `.icns`, por lo que el Dock y el Finder mostraban el ícono genérico de Electron (el átomo) en lugar del isotipo "La Incisión" de la marca. Ahora `mac.icon` usa el ícono de marca (regenerado a 1024×1024 para pantallas Retina) y electron-builder lo empaqueta como `.icns`.
+
 ## [1.2.5] - 2026-08-29
 
 ### Corregido
