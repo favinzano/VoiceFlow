@@ -1,6 +1,6 @@
 {
   "status": "owner_override",
-  "appVersion": "1.2.5",
+  "appVersion": "1.2.6",
   "termsVersion": "2026-07-17-beta-1",
   "legalEmail": "legal@felipeavinzano.com",
   "legalEmailCheck": {
@@ -32,9 +32,9 @@
   },
   "ownerOverride": {
     "authorizedBy": "Felipe Avinzano",
-    "authorizedAt": "2026-08-29T02:40:22.578Z",
-    "scopeVersion": "1.2.5",
-    "reason": "El propietario autoriza publicar 1.2.5 (aviso de actualización al iniciar y flujo de update adaptado por plataforma: auto-instalación en Windows, aviso + descarga guiada en macOS por la firma ad-hoc; sigue sin notarización Apple ni Authenticode) como latest y asume la responsabilidad por los requisitos externos aún pendientes.",
+    "authorizedAt": "2026-08-29T03:30:38.176Z",
+    "scopeVersion": "1.2.6",
+    "reason": "El propietario autoriza publicar 1.2.6 (define mac.icon con el isotipo de marca para que macOS muestre el ícono correcto en lugar del genérico de Electron; sigue sin notarización Apple ni Authenticode) como latest y asume la responsabilidad por los requisitos externos aún pendientes.",
     "acknowledgesIncompleteLegalReview": true,
     "acknowledgesUnverifiedOperationalRequirements": true,
     "acknowledgesUnsignedArtifacts": true,
