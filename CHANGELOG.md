@@ -8,6 +8,16 @@
 
 Todos los cambios relevantes de felipe avinzano VoiceFlow se documentan en este archivo.
 
+## [1.2.5] - 2026-08-29
+
+### Corregido
+
+- El chequeo de actualizaciones al iniciar ahora **avisa** al usuario cuando hay una nueva versión (antes solo notificaba en la búsqueda manual, así que en automático descargaba en silencio sin informar).
+
+### Cambiado
+
+- Flujo de actualización adaptado por plataforma. En **Windows** se mantiene la descarga e instalación automáticas. En **macOS**, como la firma ad-hoc no permite la auto-instalación (Squirrel.Mac exige firma de Apple), la app deja de intentar instalar en silencio: al detectar una nueva versión avisa y ofrece un botón **Descargar** que abre la página de descarga. La auto-instalación en macOS llegará con la versión notarizada (Apple Developer ID).
+
 ## [1.2.4] - 2026-08-29
 
 ### Corregido

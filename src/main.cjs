@@ -528,8 +528,13 @@ function createTray() {
 }
 
 function configureAutoUpdater() {
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  // macOS auto-INSTALL requires a Developer ID signature + notarization
+  // (Squirrel.Mac). This build is ad-hoc signed, so never silently download an
+  // update it can never apply; instead we notify and open the download page.
+  // Windows/Linux keep full auto-download + install.
+  const canAutoInstall = process.platform !== "darwin";
+  autoUpdater.autoDownload = canAutoInstall;
+  autoUpdater.autoInstallOnAppQuit = canAutoInstall;
 
   autoUpdater.on("update-not-available", () => {
     if (!manualUpdateCheck) return;
@@ -540,15 +545,29 @@ function configureAutoUpdater() {
       message: `Ya tienes la versión más reciente (${app.getVersion()}).`
     });
   });
-  autoUpdater.on("update-available", () => {
-    if (manualUpdateCheck) {
+  autoUpdater.on("update-available", (info) => {
+    manualUpdateCheck = false;
+    const version = info?.version ? ` (${info.version})` : "";
+    if (process.platform === "darwin") {
+      // Ad-hoc signed build cannot auto-install; notify and open the download page.
       dialog.showMessageBox({
         type: "info",
-        title: "Actualización encontrada",
-        message: "La nueva versión se está descargando y se instalará automáticamente."
-      });
+        title: "Nueva versión disponible",
+        message: `Hay una nueva versión${version} de ${brand.displayName}.`,
+        detail: "Ábrela para descargar el instalador y actualizar manualmente. La instalación automática en macOS llegará con la versión firmada por Apple.",
+        buttons: ["Descargar", "Ahora no"],
+        defaultId: 0,
+        cancelId: 1
+      }).then((result) => {
+        if (result.response === 0) shell.openExternal(`${brand.repository.url}/releases/latest`).catch(() => {});
+      }).catch(() => {});
+      return;
     }
-    manualUpdateCheck = false;
+    dialog.showMessageBox({
+      type: "info",
+      title: "Actualización disponible",
+      message: `Descargando la nueva versión${version}. Se instalará al reiniciar.`
+    });
   });
   autoUpdater.on("update-downloaded", (info) => {
     sendToMainWindow("update:downloaded", { version: info?.version });

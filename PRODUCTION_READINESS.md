@@ -1,6 +1,6 @@
 # Preparación Para Producción
 
-Estado actual: versión `1.2.4` técnicamente empaquetable para Windows x64, macOS (Apple Silicon e Intel) y Linux x86_64. El propietario autorizó una excepción temporal para su distribución externa mediante `docs/LEGAL_RELEASE_GATE.md`. Los instaladores carecen de firma de un desarrollador identificado (Windows sin Authenticode, macOS sin notarización de Apple); el build de macOS lleva firma ad-hoc para permitir la ejecución en Apple Silicon, pero seguirá mostrando "desarrollador no identificado" hasta notarizarlo. Ver el riesgo correspondiente más abajo.
+Estado actual: versión `1.2.5` técnicamente empaquetable para Windows x64, macOS (Apple Silicon e Intel) y Linux x86_64. El propietario autorizó una excepción temporal para su distribución externa mediante `docs/LEGAL_RELEASE_GATE.md`. Los instaladores carecen de firma de un desarrollador identificado (Windows sin Authenticode, macOS sin notarización de Apple); el build de macOS lleva firma ad-hoc para permitir la ejecución en Apple Silicon, pero seguirá mostrando "desarrollador no identificado" hasta notarizarlo. Ver el riesgo correspondiente más abajo.
 
 ## Verificado
 
