@@ -8,6 +8,12 @@
 
 Todos los cambios relevantes de felipe avinzano VoiceFlow se documentan en este archivo.
 
+## [1.2.7] - 2026-08-29
+
+### Corregido
+
+- En **macOS**, la barra de título mostraba el logo y el wordmark en la esquina superior izquierda, donde los controles de ventana del sistema (cerrar/minimizar/pantalla completa) los solapaban. Ahora, solo en macOS, la marca se ubica en la esquina superior derecha y se reserva el margen izquierdo para los "semáforos", evitando el solapamiento. En Windows se mantiene a la izquierda (sus controles van a la derecha).
+
 ## [1.2.6] - 2026-08-29
 
 ### Corregido

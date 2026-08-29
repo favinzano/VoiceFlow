@@ -24,6 +24,10 @@ button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 
 .titlebar { -webkit-app-region: drag; height: 48px; display: flex; align-items: center; justify-content: flex-start; padding: 0 148px 0 20px; border-bottom: 1px solid var(--rule); background: var(--bone); }
+/* macOS draws its close/minimize/fullscreen controls at the top-left, over the
+   brand. Move the lockup to the top-right and reserve the left gutter for the
+   traffic lights so nothing overlaps. */
+:root[data-platform="darwin"] .titlebar { justify-content: flex-end; padding: 0 20px 0 88px; }
 .brand, .side-brand { display: flex; align-items: center; gap: 9px; }
 .wordmark { font: 600 13px/1.2 Geist; letter-spacing: -.02em; }
 .brand-flow {

@@ -112,6 +112,11 @@ function applyBrand(brand, appVersion) {
 
 applyBrand(brand, voiceAPI.appVersion);
 
+// Exposes the OS to CSS so the title bar can dodge the platform's window
+// controls: macOS draws its traffic lights top-left, Windows its controls
+// top-right. Set synchronously (before first paint) to avoid a reflow flash.
+document.documentElement.dataset.platform = voiceAPI.runtime.platform;
+
 if (!voiceAPI.runtime.preserveLegacyStorage) {
   initializeProductionProfile(localStorage, voiceAPI.runtime.isPackaged);
   upgradeAccuracyDefault(localStorage);
