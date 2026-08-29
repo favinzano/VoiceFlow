@@ -176,13 +176,20 @@ jobs:
           # only @img/sharp-darwin-arm64. The x64 DMG is built on the SAME runner and
           # would ship without @img/sharp-darwin-x64, making transformers.js fail at
           # model load with: "Could not load the sharp module using the darwin-x64
-          # runtime". Fetch the x64 binary explicitly so both DMGs carry their sharp.
+          # runtime". `npm install` refuses a foreign-arch package (EBADPLATFORM),
+          # so fetch the tarballs with `npm pack` (no platform check) and extract
+          # them straight into node_modules. sharp picks the binary by process.arch
+          # at runtime, so file placement is all that is needed.
           SHARP_VER=$(node -p "require('sharp/package.json').version")
           LIBVIPS_VER=$(node -p "require('sharp/package.json').optionalDependencies['@img/sharp-libvips-darwin-x64']")
-          npm install --no-save --os=darwin --cpu=x64 \
-            "@img/sharp-darwin-x64@${SHARP_VER}" \
-            "@img/sharp-libvips-darwin-x64@${LIBVIPS_VER}"
-          test -d node_modules/@img/sharp-darwin-x64 || { echo "missing @img/sharp-darwin-x64 after install" >&2; exit 1; }
+          TMP=$(mktemp -d)
+          mkdir -p node_modules/@img/sharp-darwin-x64 node_modules/@img/sharp-libvips-darwin-x64
+          TGZ1=$(cd "$TMP" && npm pack "@img/sharp-darwin-x64@${SHARP_VER}" 2>/dev/null | tail -1)
+          tar -xzf "$TMP/$TGZ1" -C node_modules/@img/sharp-darwin-x64 --strip-components=1
+          TGZ2=$(cd "$TMP" && npm pack "@img/sharp-libvips-darwin-x64@${LIBVIPS_VER}" 2>/dev/null | tail -1)
+          tar -xzf "$TMP/$TGZ2" -C node_modules/@img/sharp-libvips-darwin-x64 --strip-components=1
+          test -n "$(find node_modules/@img/sharp-darwin-x64 -name '*.node' | head -n1)" || { echo "missing sharp-darwin-x64 .node after extract" >&2; exit 1; }
+          test -d node_modules/@img/sharp-libvips-darwin-x64 || { echo "missing sharp-libvips-darwin-x64" >&2; exit 1; }
           test -d node_modules/@img/sharp-darwin-arm64 || { echo "missing @img/sharp-darwin-arm64 (runner arch)" >&2; exit 1; }
           echo "sharp darwin binaries present in node_modules: arm64 + x64"
 
