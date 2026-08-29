@@ -8,6 +8,12 @@
 
 Todos los cambios relevantes de felipe avinzano VoiceFlow se documentan en este archivo.
 
+## [1.2.4] - 2026-08-29
+
+### Corregido
+
+- Corregido el fallo de transcripción en macOS **Intel (x64)**: la app mostraba "Motor no disponible" y "No fue posible preparar el modelo local" porque faltaba el binario nativo de `sharp` (`@img/sharp-darwin-x64`), dependencia de `@huggingface/transformers`. El runner de CI de macOS es Apple Silicon y `npm ci` instalaba solo el `sharp` de arm64, dejando el DMG de Intel sin el suyo. Ahora el pipeline instala explícitamente el binario darwin-x64 antes de empaquetar, desempaqueta `@img` del ASAR y verifica por arquitectura que el binario de `sharp` esté presente en cada paquete.
+
 ## [1.2.3] - 2026-08-20
 
 ### Corregido

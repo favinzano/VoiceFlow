@@ -1,6 +1,6 @@
 {
     "name": "felipe-avinzanovoiceflow",
-    "version": "1.2.3",
+    "version": "1.2.4",
     "description": "felipe avinzano VoiceFlow - dictado privado y local para Windows, macOS y Linux",
     "author": "Felipe Avinzano",
     "license": "SEE LICENSE IN LICENSE.md",
@@ -62,6 +62,7 @@
             "node_modules/onnxruntime-node/bin/napi-v3/win32/x64/**/*",
             "node_modules/onnxruntime-node/bin/napi-v3/darwin/**/*",
             "node_modules/onnxruntime-node/bin/napi-v3/linux/**/*",
+            "node_modules/@img/**/*",
             "node_modules/better-sqlite3/build/Release/**/*",
             "node_modules/@nut-tree-fork/libnut-darwin/build/Release/**/*",
             "node_modules/@nut-tree-fork/libnut-linux/build/Release/**/*",
