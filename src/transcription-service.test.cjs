@@ -5,6 +5,53 @@ const {
   normalizeInferenceDevice
 } = require("./transcription-service.cjs");
 
+async function checkIdleUnload() {
+  const events = [];
+  const timers = [];
+  const fake = async () => ({ text: "ok" });
+  fake.dispose = async () => { events.push("disposed"); };
+  const service = createTranscriptionService({
+    userDataPath: "C:\models",
+    resolveProfile: (id) => ({ id: id || "fast", model: "m", dtype: "q8", generation: {} }),
+    ensureModelCache: async () => "C:\models",
+    loadModelWithRetry: async (load) => ({ value: await load(), attempts: 1 }),
+    importTransformers: async () => ({ env: {}, pipeline: async () => fake }),
+    logger: { warn() {}, error() {} },
+    idleUnloadMs: 5000,
+    setTimer: (fn, ms) => { const timer = { fn, ms, cleared: false }; timers.push(timer); return timer; },
+    clearTimer: (timer) => { timer.cleared = true; }
+  });
+  const live = () => timers.filter((timer) => !timer.cleared);
+
+  const first = service.start({ profileId: "fast" });
+  service.pushAudio(first.id, new Float32Array([0.1]));
+  await service.finish(first.id);
+  assert.equal(live().length, 1);
+  assert.equal(live()[0].ms, 5000);
+
+  const second = service.start({ profileId: "fast" });
+  assert.equal(live().length, 0, "starting a session cancels the idle timer");
+  service.pushAudio(second.id, new Float32Array([0.1]));
+  await service.finish(second.id);
+  assert.equal(live().length, 1);
+
+  const pending = service.start({ profileId: "fast" });
+  const stale = timers.at(-2);
+  await stale.fn();
+  assert.equal(events.length, 0, "never unloads while a session is active");
+  service.cancel(pending.id);
+
+  assert.equal(live().length, 1);
+  const due = live()[0];
+  due.cleared = true;
+  await due.fn();
+  assert.deepEqual(events, ["disposed"]);
+  assert.equal(service.health().ready, false);
+
+  await service.dispose();
+  assert.equal(live().length, 0, "dispose clears the idle timer");
+}
+
 async function run() {
   assert.equal(normalizeInferenceDevice("dml", "win32"), "dml");
   assert.equal(normalizeInferenceDevice("dml", "darwin"), "cpu");
@@ -57,7 +104,9 @@ async function run() {
   await service.dispose();
   assert.equal(calls.at(-1).disposed, true);
 
-  console.log("Transcription service: 15 checks passed.");
+  await checkIdleUnload();
+
+  console.log("Transcription service: 22 checks passed.");
 }
 
 run().catch((error) => {
