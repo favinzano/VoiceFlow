@@ -1025,7 +1025,9 @@ app.whenReady().then(async () => {
     // descarga (una vez, desde Hugging Face) cuando el modelo no existe en la
     // máquina. Necesario para provisionar el modelo en instalaciones nuevas
     // (el .onnx no se empaqueta). El audio del usuario nunca sale del equipo.
-    allowRemoteModels: true,
+    // --self-test-local-only solo endurece: desactiva la descarga para que CI
+    // verifique que sin descarga ni paquete offline la app falla cerrada.
+    allowRemoteModels: !(selfTestPaths && process.argv.includes("--self-test-local-only")),
     onDownloadState: setModelDownloadActive,
     onProgress: (progress) => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
