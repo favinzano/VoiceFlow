@@ -2,6 +2,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const { cleanTranscriptionDetailed } = require("./text-cleanup.cjs");
 const { addEntry, normalizeDictionary, parseEntryInput } = require("./dictionary.cjs");
+const { learnAlias, suggestCorrections } = require("./word-learning.cjs");
 const { resampleAudio, trimEdgeSilence } = require("./audio-quality.cjs");
 const { createVoiceActivityDetector } = require("./voice-activity.cjs");
 const { INTERRUPT_REASON, interruptMessage, isRecordingTooLong, watchTrackEnded } = require("./recording-safety.cjs");
@@ -816,7 +817,7 @@ function renderHistory() {
     const article = document.createElement("article");
     const date = new Date(item.at);
     article.className = "history-item";
-    article.innerHTML = `<button class="history-copy" title="Copiar transcripción"><span></span><p></p></button><div class="history-meta"><time>${date.toLocaleString()}</time><button class="history-original" hidden>Original</button><button class="history-delete">Eliminar</button></div>`;
+    article.innerHTML = `<button class="history-copy" title="Copiar transcripción"><span></span><p></p></button><div class="history-meta"><time>${date.toLocaleString()}</time><button class="history-original" hidden>Original</button><button class="history-correct">Corregir</button><button class="history-delete">Eliminar</button></div>`;
     article.querySelector(".history-copy span").textContent = `${String(index + 1).padStart(2, "0")} / Texto`;
     article.querySelector("p").textContent = item.text;
     article.querySelector(".history-copy").addEventListener("click", async () => {
@@ -832,12 +833,63 @@ function renderHistory() {
         showToast("Texto original copiado.");
       });
     }
+    article.querySelector(".history-correct").addEventListener("click", () => toggleCorrectionPanel(article, item));
     article.querySelector(".history-delete").addEventListener("click", async () => {
       await voiceAPI.transcriptions.delete(item.id);
       await refreshHistory();
     });
     elements.historyList.appendChild(article);
   });
+}
+
+function toggleCorrectionPanel(article, item) {
+  const existing = article.querySelector(".correction-panel");
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  const panel = document.createElement("div");
+  panel.className = "correction-panel";
+  panel.innerHTML = '<label>Escribe cómo debía quedar<textarea rows="3" maxlength="2000"></textarea></label><div class="correction-actions"><button type="button" class="correction-learn">Aprender palabras</button><small>Se guarda solo en este equipo.</small></div><ul class="correction-suggestions"></ul>';
+  const textarea = panel.querySelector("textarea");
+  textarea.value = item.text;
+  const list = panel.querySelector(".correction-suggestions");
+  panel.querySelector(".correction-learn").addEventListener("click", () => {
+    list.innerHTML = "";
+    const suggestions = suggestCorrections(item.text, textarea.value);
+    if (!suggestions.length) {
+      const empty = document.createElement("li");
+      empty.textContent = "No encontré palabras que aprender. Cambia solo las palabras mal escuchadas.";
+      list.appendChild(empty);
+      return;
+    }
+    suggestions.forEach((suggestion) => {
+      const row = document.createElement("li");
+      const label = document.createElement("span");
+      label.textContent = `${suggestion.term} ← ${suggestion.alias}`;
+      const add = document.createElement("button");
+      add.type = "button";
+      add.textContent = "Añadir";
+      add.addEventListener("click", () => {
+        const result = learnAlias(dictionary, suggestion);
+        if (!result.added) {
+          const reasons = { duplicate: "Ya lo conocía.", full: "El diccionario está lleno (200 términos).", "aliases-full": "Ese término ya tiene el máximo de variantes." };
+          showToast(reasons[result.reason] || "No se pudo añadir.");
+          return;
+        }
+        dictionary = result.dictionary;
+        persistState();
+        renderDictionary();
+        add.disabled = true;
+        add.textContent = "Añadido";
+        showToast("Palabra aprendida en el diccionario.");
+      });
+      row.append(label, add);
+      list.appendChild(row);
+    });
+  });
+  article.appendChild(panel);
+  textarea.focus();
 }
 
 function renderDictionary() {
