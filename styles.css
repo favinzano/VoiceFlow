@@ -161,3 +161,18 @@ h2 { font: 550 22px/1.2 Geist; letter-spacing: -.025em; }
 .history-original { border: 0; color: var(--copper); background: transparent; font-size: 10px; transition: transform 140ms cubic-bezier(.23,1,.32,1), opacity 140ms ease; }
 .history-original[hidden] { display: none; }
 .history-original:active { transform: scale(.94); opacity: .7; }
+
+.history-correct { border: 0; color: var(--copper); background: transparent; font-size: 10px; transition: transform 140ms cubic-bezier(.23,1,.32,1), opacity 140ms ease; }
+.history-correct:active { transform: scale(.94); opacity: .7; }
+.history-meta { flex-wrap: wrap; gap: 4px 10px; }
+.correction-panel { grid-column: 1 / -1; display: grid; gap: 10px; padding: 14px 0 4px 108px; }
+.correction-panel label { display: grid; gap: 6px; color: var(--fog); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.correction-panel textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--rule); background: transparent; color: #344551; font: inherit; font-size: 14px; line-height: 1.5; letter-spacing: 0; text-transform: none; resize: vertical; }
+.correction-panel textarea:focus-visible { outline: 2px solid var(--copper); outline-offset: 1px; }
+.correction-actions { display: flex; align-items: center; gap: 12px; color: var(--fog); font-size: 10px; }
+.correction-actions button, .correction-suggestions button { padding: 6px 12px; border: 1px solid var(--copper); color: var(--copper); background: transparent; font-size: 11px; transition: transform 140ms cubic-bezier(.23,1,.32,1), opacity 140ms ease; }
+.correction-actions button:active, .correction-suggestions button:active { transform: scale(.96); }
+.correction-suggestions button:disabled { opacity: .5; }
+.correction-suggestions { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.correction-suggestions li { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #344551; font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .correction-panel { padding-left: 0; } }
