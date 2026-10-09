@@ -1,8 +1,10 @@
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
-const { cleanTranscription } = require("./text-cleanup.cjs");
+const { cleanTranscriptionDetailed } = require("./text-cleanup.cjs");
+const { addEntry, normalizeDictionary, parseEntryInput } = require("./dictionary.cjs");
 const { resampleAudio, trimEdgeSilence } = require("./audio-quality.cjs");
 const { createVoiceActivityDetector } = require("./voice-activity.cjs");
+const { INTERRUPT_REASON, interruptMessage, isRecordingTooLong, watchTrackEnded } = require("./recording-safety.cjs");
 const { resolveWhisperProfile } = require("./whisper-profiles.cjs");
 const { clearMigratedLegacyStorage, initializeProductionProfile, upgradeAccuracyDefault, upgradePerfDefault, revertExperimentalDmlDefault, revertWhisperCppEngine } = require("./data-migrations.cjs");
 const { initializeVisualizer } = require("./audio-visualizer.js");
@@ -84,6 +86,7 @@ const voiceAPI = window.voiceAPI || {
   onShortcutPressed: () => {},
   onShortcutReleased: () => {},
   onReprocess: () => {},
+  onRecordingInterrupt: () => {},
   onShortcutError: () => {},
   onModelProgress: () => {},
   onNavigate: () => {},
@@ -132,6 +135,7 @@ const defaults = {
   appendSpace: true,
   cleanupText: true,
   dictionaryEnabled: true,
+  dictionaryThreshold: 0.18,
   historyLimit: 30,
   autoStopEnabled: true,
   silenceTimeoutMs: 1800,
@@ -147,7 +151,7 @@ const legacyState = {
 };
 let settings = { ...defaults, ...legacyState.settings };
 let history = [];
-let dictionary = legacyState.dictionary;
+let dictionary = normalizeDictionary(legacyState.dictionary);
 let persistedMicrophone = legacyState.microphone;
 let mediaStream;
 let audioContext;
@@ -200,6 +204,7 @@ const elements = {
   appendSpace: $("#appendSpace"),
   cleanupText: $("#cleanupText"),
   dictionaryEnabled: $("#dictionaryEnabled"),
+  dictionaryThreshold: $("#dictionaryThreshold"),
   historyLimit: $("#historyLimit"),
   autoStopEnabled: $("#autoStopEnabled"),
   silenceTimeout: $("#silenceTimeout"),
@@ -454,8 +459,11 @@ function setStatus(status, detail) {
 }
 
 let stopMainVisualizer;
+let stopTrackWatch;
 
 async function releaseAudioCapture() {
+  stopTrackWatch?.();
+  stopTrackWatch = undefined;
   stopMainVisualizer?.();
   stopMainVisualizer = undefined;
   audioSource?.disconnect();
@@ -504,6 +512,7 @@ async function beginRecording(source = "button") {
         autoGainControl: false
       }
     });
+    stopTrackWatch = watchTrackEnded(mediaStream, () => interruptRecording(INTERRUPT_REASON.MICROPHONE_LOST));
     await updateMicrophones();
     recordedPcmChunks = [];
     autoStopPending = false;
@@ -548,6 +557,10 @@ async function beginRecording(source = "button") {
     startedAt = Date.now();
     elements.timer.textContent = "00:00";
     timerInterval = setInterval(() => {
+      if (isRecordingTooLong(Date.now() - startedAt)) {
+        interruptRecording(INTERRUPT_REASON.TIME_LIMIT);
+        return;
+      }
       elements.timer.textContent = formatTime((Date.now() - startedAt) / 1000);
       const instruction = triggerSource === "shortcut"
         ? (settings.shortcutMode === "hold" ? "Escuchando. Suelta el atajo para convertir." : "Escuchando. Presiona el atajo para convertir.")
@@ -568,6 +581,13 @@ async function beginRecording(source = "button") {
     showToast(`Micrófono no disponible: ${error.message || error.name}`);
     finishOverlay("error", "No pudimos acceder al micrófono.");
   }
+}
+
+// Cierra la grabación activa sin perder lo ya capturado y avisa del motivo.
+function interruptRecording(reason) {
+  if (!recording) return;
+  showToast(interruptMessage(reason));
+  finishRecording();
 }
 
 function handleVoiceLevel(rms) {
@@ -608,10 +628,11 @@ function flushCapture(timeoutMs = 250) {
 }
 
 function cleanText(text) {
-  return cleanTranscription(text, {
+  return cleanTranscriptionDetailed(text, {
     cleanup: settings.cleanupText,
     dictionaryEnabled: settings.dictionaryEnabled,
     dictionary,
+    dictionaryThreshold: Number(settings.dictionaryThreshold),
     appendSpace: settings.appendSpace
   });
 }
@@ -639,12 +660,12 @@ async function processAudio(audio, source = "button", sessionContext = {}) {
     const textFinalizeStartedAt = performance.now();
     const rawText = typeof result === "string" ? result : result.text;
     if (!rawText) throw new Error("El motor no devolvió texto.");
-    const text = cleanText(rawText);
+    const { text, literal } = cleanText(rawText);
     const textFinalizeMs = Math.round(performance.now() - textFinalizeStartedAt);
     if (!text.trim()) throw new Error("No detectamos palabras claras en la grabación.");
     elements.modelBadge.classList.remove("loading", "error");
     elements.modelBadge.innerHTML = `<span></span>${profile.shortLabel} · ${(result.device || "cpu").toUpperCase()}`;
-    const delivery = await deliverText(text, source, sessionContext.captureFinishedAtEpochMs);
+    const delivery = await deliverText(text, source, sessionContext.captureFinishedAtEpochMs, literal);
     finishOverlay(
       "success",
       delivery.pasted ? "Texto pegado. Continúa escribiendo." : "Transcripción copiada al portapapeles."
@@ -740,13 +761,14 @@ function pasteFailureToastMessage(reason) {
   return "No se pudo pegar automáticamente. El texto quedó guardado en el portapapeles.";
 }
 
-async function deliverText(text, source, finishedAtEpochMs) {
+async function deliverText(text, source, finishedAtEpochMs, literal) {
   const copy = settings.deliveryMode === "copy" || settings.deliveryMode === "paste-copy";
   const shouldPaste = settings.deliveryMode === "paste-copy" && source === "shortcut";
   const delivery = await voiceAPI.deliver(text, {
     copy,
     paste: shouldPaste,
     saveHistory: true,
+    literal,
     historyLimit: Number(settings.historyLimit),
     captureFinishedAtEpochMs: finishedAtEpochMs
   });
@@ -770,7 +792,7 @@ async function deliverText(text, source, finishedAtEpochMs) {
 
 async function refreshHistory() {
   const rows = await voiceAPI.transcriptions.getAll(Number(settings.historyLimit));
-  history = rows.map((row) => ({ id: row.id, text: row.texto, at: row.fecha }));
+  history = rows.map((row) => ({ id: row.id, text: row.texto, at: row.fecha, literal: row.literal || "" }));
   renderHistory();
 }
 
@@ -792,13 +814,22 @@ function renderHistory() {
     const article = document.createElement("article");
     const date = new Date(item.at);
     article.className = "history-item";
-    article.innerHTML = `<button class="history-copy" title="Copiar transcripción"><span></span><p></p></button><div class="history-meta"><time>${date.toLocaleString()}</time><button class="history-delete">Eliminar</button></div>`;
+    article.innerHTML = `<button class="history-copy" title="Copiar transcripción"><span></span><p></p></button><div class="history-meta"><time>${date.toLocaleString()}</time><button class="history-original" hidden>Original</button><button class="history-delete">Eliminar</button></div>`;
     article.querySelector(".history-copy span").textContent = `${String(index + 1).padStart(2, "0")} / Texto`;
     article.querySelector("p").textContent = item.text;
     article.querySelector(".history-copy").addEventListener("click", async () => {
       await voiceAPI.copy(item.text);
       showToast("Transcripción copiada.");
     });
+    const originalButton = article.querySelector(".history-original");
+    if (item.literal) {
+      originalButton.hidden = false;
+      originalButton.title = "Copiar lo que se dijo, sin limpieza";
+      originalButton.addEventListener("click", async () => {
+        await voiceAPI.copy(item.literal);
+        showToast("Texto original copiado.");
+      });
+    }
     article.querySelector(".history-delete").addEventListener("click", async () => {
       await voiceAPI.transcriptions.delete(item.id);
       await refreshHistory();
@@ -813,13 +844,15 @@ function renderDictionary() {
     elements.dictionaryList.innerHTML = '<div class="empty-state compact"><span>Diccionario personal</span><h3>Empieza con una palabra importante.</h3><p>Nombres propios, marcas y términos técnicos son un buen comienzo.</p></div>';
     return;
   }
-  dictionary.forEach((term, index) => {
+  dictionary.forEach((item, index) => {
+    const term = typeof item === "string" ? item : item.term;
+    const aliases = typeof item === "string" ? [] : item.aliases;
     const row = document.createElement("div");
     row.className = "dictionary-item";
     row.innerHTML = `<span>${String(index + 1).padStart(2, "0")}</span><strong></strong><em>Activo</em><button>Eliminar</button>`;
-    row.querySelector("strong").textContent = term;
+    row.querySelector("strong").textContent = aliases.length ? `${term} ← ${aliases.join(", ")}` : term;
     row.querySelector("button").addEventListener("click", () => {
-      dictionary = dictionary.filter((item) => item !== term);
+      dictionary = dictionary.filter((entry) => entry !== item);
       persistState();
       renderDictionary();
     });
@@ -840,6 +873,7 @@ async function hydrateSettings() {
   elements.appendSpace.checked = settings.appendSpace;
   elements.cleanupText.checked = settings.cleanupText;
   elements.dictionaryEnabled.checked = settings.dictionaryEnabled;
+  elements.dictionaryThreshold.value = String(settings.dictionaryThreshold);
   elements.historyLimit.value = String(settings.historyLimit);
   elements.autoStopEnabled.checked = settings.autoStopEnabled;
   elements.silenceTimeout.value = String(settings.silenceTimeoutMs);
@@ -942,9 +976,17 @@ function updateDictionaryCounter() {
 elements.dictionaryInput.addEventListener("input", updateDictionaryCounter);
 elements.dictionaryForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const term = elements.dictionaryInput.value.trim();
-  if (!term || dictionary.some((item) => item.toLocaleLowerCase() === term.toLocaleLowerCase())) return;
-  dictionary.unshift(term);
+  const entry = parseEntryInput(elements.dictionaryInput.value);
+  if (!entry) {
+    showToast("Escribe un término válido (hasta 80 caracteres).");
+    return;
+  }
+  const result = addEntry(dictionary, entry);
+  if (!result.added) {
+    showToast(result.reason === "full" ? "El diccionario está lleno (200 términos)." : "Ese término ya está en el diccionario.");
+    return;
+  }
+  dictionary = result.dictionary;
   persistState();
   elements.dictionaryInput.value = "";
   updateDictionaryCounter();
@@ -966,12 +1008,13 @@ elements.microphone.addEventListener("change", () => {
   ["appendSpace", elements.appendSpace],
   ["cleanupText", elements.cleanupText],
   ["dictionaryEnabled", elements.dictionaryEnabled],
+  ["dictionaryThreshold", elements.dictionaryThreshold],
   ["historyLimit", elements.historyLimit],
   ["autoStopEnabled", elements.autoStopEnabled],
   ["silenceTimeoutMs", elements.silenceTimeout]
 ].forEach(([key, control]) => control.addEventListener("change", async () => {
   settings[key] = control.type === "checkbox" ? control.checked : control.value;
-  if (key === "historyLimit" || key === "silenceTimeoutMs") settings[key] = Number(settings[key]);
+  if (["historyLimit", "silenceTimeoutMs", "dictionaryThreshold"].includes(key)) settings[key] = Number(settings[key]);
   saveSettings();
   if (key === "whisperProfile") {
     const profile = resolveWhisperProfile(settings.whisperProfile);
@@ -1122,6 +1165,7 @@ voiceAPI.onShortcutReleased(() => {
   if (recording) finishRecording();
 });
 voiceAPI.onReprocess(() => processAudio(lastAudio, "shortcut"));
+voiceAPI.onRecordingInterrupt((_event, reason) => interruptRecording(reason));
 voiceAPI.onShortcutError(() => showToast("Un acceso directo ya está siendo usado por otra aplicación."));
 voiceAPI.onNavigate((panel) => switchPanel(panel));
 voiceAPI.onUpdateDownloaded(() => {
@@ -1161,7 +1205,7 @@ async function initializeApp() {
   persisted.settings = migratedSettings;
   settings = { ...defaults, ...persisted.settings };
   applyPlatformCapabilities();
-  dictionary = persisted.dictionary;
+  dictionary = normalizeDictionary(persisted.dictionary);
   persistedMicrophone = persisted.microphone;
   clearMigratedLegacyStorage(localStorage, voiceAPI.runtime.preserveLegacyStorage);
   await voiceAPI.transcriptions.migrateLegacy(persisted.history);

@@ -2,9 +2,11 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
+const Database = require("better-sqlite3");
 const {
   clearTranscriptions,
   closeDb,
+  dbPath,
   deleteTranscription,
   getAllTranscriptions,
   initDb,
@@ -60,9 +62,40 @@ async function run() {
   migrateLegacyHistory([{ text: "no debe insertarse", at: "2026-03-01T00:00:00.000Z" }]);
   assert.equal(getAllTranscriptions().length, 2);
 
+  clearTranscriptions();
+  const withLiteral = insertTranscription("Hola.", "2026-04-01T00:00:00.000Z", "eh hola");
+  assert.equal(withLiteral.literal, "eh hola");
+  const sameText = insertTranscription("Igual", "2026-04-02T00:00:00.000Z", "Igual");
+  assert.equal(sameText.literal, null, "no duplica el literal cuando es idéntico");
+  const onlyFormatting = insertTranscription("Hola, equipo. ", "2026-04-02T12:00:00.000Z", "hola equipo");
+  assert.equal(onlyFormatting.literal, null, "mayúsculas, puntuación y espacio final no cuentan como diferencia");
+  const plain = insertTranscription("Sin literal", "2026-04-03T00:00:00.000Z");
+  assert.equal(plain.literal, null);
+  rows = getAllTranscriptions();
+  assert.equal(rows[0].literal, null);
+  assert.equal(rows[3].literal, "eh hola");
+
   closeDb();
+
+  // Una base creada antes de la columna literal se actualiza sin perder filas
+  const legacyRoot = await fs.mkdtemp(path.join(os.tmpdir(), "voiceflow-db-legacy-"));
+  const legacy = new Database(dbPath(legacyRoot));
+  legacy.exec("CREATE TABLE transcriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, texto TEXT NOT NULL, fecha TEXT NOT NULL)");
+  legacy.prepare("INSERT INTO transcriptions (texto, fecha) VALUES (?, ?)").run("antigua", "2026-01-01T00:00:00.000Z");
+  legacy.close();
+  initDb(legacyRoot);
+  rows = getAllTranscriptions();
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].texto, "antigua");
+  assert.equal(rows[0].literal, null);
+  closeDb();
+  initDb(legacyRoot);
+  assert.equal(getAllTranscriptions().length, 1, "reabrir la base es idempotente");
+  closeDb();
+
   await fs.rm(root, { recursive: true, force: true });
-  console.log("DB: 10 checks passed.");
+  await fs.rm(legacyRoot, { recursive: true, force: true });
+  console.log("DB: 23 checks passed.");
 }
 
 run().catch((error) => {

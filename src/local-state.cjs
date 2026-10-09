@@ -1,5 +1,6 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { normalizeDictionary } = require("./dictionary.cjs");
 
 const STATE_SCHEMA_VERSION = 1;
 
@@ -19,7 +20,7 @@ function normalizeState(state = {}) {
     schemaVersion: STATE_SCHEMA_VERSION,
     settings: state.settings && typeof state.settings === "object" ? state.settings : {},
     history: Array.isArray(state.history) ? state.history : [],
-    dictionary: Array.isArray(state.dictionary) ? state.dictionary.filter((item) => typeof item === "string") : [],
+    dictionary: normalizeDictionary(state.dictionary),
     microphone: typeof state.microphone === "string" ? state.microphone : ""
   };
 }

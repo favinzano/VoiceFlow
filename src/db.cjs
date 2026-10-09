@@ -19,6 +19,10 @@ function initDb(userDataPath) {
       fecha TEXT NOT NULL
     )
   `);
+  const columns = db.prepare("PRAGMA table_info(transcriptions)").all();
+  if (!columns.some((column) => column.name === "literal")) {
+    db.exec("ALTER TABLE transcriptions ADD COLUMN literal TEXT");
+  }
   return db;
 }
 
@@ -27,17 +31,26 @@ function requireDb() {
   return db;
 }
 
-function insertTranscription(texto, fecha = new Date().toISOString()) {
-  const result = requireDb().prepare("INSERT INTO transcriptions (texto, fecha) VALUES (?, ?)").run(texto, fecha);
-  return { id: result.lastInsertRowid, texto, fecha };
+function wordsOf(value) {
+  return String(value).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
+// El texto literal solo se guarda cuando las palabras difieren del texto final
+// (muletillas, repeticiones...). Mayúsculas, puntuación y espacio final no cuentan.
+function insertTranscription(texto, fecha = new Date().toISOString(), literal) {
+  const storedLiteral = typeof literal === "string" && literal && wordsOf(literal) !== wordsOf(texto) ? literal : null;
+  const result = requireDb()
+    .prepare("INSERT INTO transcriptions (texto, fecha, literal) VALUES (?, ?, ?)")
+    .run(texto, fecha, storedLiteral);
+  return { id: result.lastInsertRowid, texto, fecha, literal: storedLiteral };
 }
 
 function getAllTranscriptions(limit) {
   const database = requireDb();
   if (Number.isFinite(limit)) {
-    return database.prepare("SELECT id, texto, fecha FROM transcriptions ORDER BY id DESC LIMIT ?").all(limit);
+    return database.prepare("SELECT id, texto, fecha, literal FROM transcriptions ORDER BY id DESC LIMIT ?").all(limit);
   }
-  return database.prepare("SELECT id, texto, fecha FROM transcriptions ORDER BY id DESC").all();
+  return database.prepare("SELECT id, texto, fecha, literal FROM transcriptions ORDER BY id DESC").all();
 }
 
 function deleteTranscription(id) {

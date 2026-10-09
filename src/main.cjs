@@ -1,4 +1,4 @@
-const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, session, screen, shell, Tray } = require("electron");
+const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, powerMonitor, session, screen, shell, Tray } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const fs = require("fs/promises");
 const fsSync = require("node:fs");
@@ -29,6 +29,7 @@ const {
 } = require("./app-preferences.cjs");
 const { createInputStrategy, resolveWin32HelperPath, PASTE_FAILURE_REASON } = require("./input-helper.cjs");
 const { notifyPastePermissionDenied } = require("./paste-permission-notice.cjs");
+const { INTERRUPT_REASON } = require("./recording-safety.cjs");
 const { resolveWhisperProfile } = require("./whisper-profiles.cjs");
 const { loadModelWithRetry } = require("./model-recovery.cjs");
 const { createTranscriptionMetricsStore } = require("./transcription-metrics.cjs");
@@ -61,6 +62,7 @@ let transcriptionMetricsStore;
 let modelPackManager;
 let historyWriteQueue;
 let waitingForHistoryFlush = false;
+const MAX_LITERAL_LENGTH = 20000;
 let pasteTarget;
 let shortcutRecording = false;
 let tray;
@@ -352,6 +354,12 @@ function handleHoldShortcutPressed() {
   shortcutRecording = true;
   capturePasteTarget().catch((error) => console.error("Could not capture paste target:", error));
   sendToMainWindow("shortcut:pressed");
+}
+
+// Suspensión o bloqueo de pantalla: el renderer cierra la grabación y procesa lo capturado.
+function interruptRecording(reason) {
+  shortcutRecording = false;
+  sendToMainWindow("recording:interrupt", reason);
 }
 
 function handleHoldShortcutReleased() {
@@ -990,6 +998,8 @@ async function runShortcutSelfTest() {
 
 app.whenReady().then(async () => {
   brandMigration = await migrationPromise;
+  powerMonitor.on("suspend", () => interruptRecording(INTERRUPT_REASON.SYSTEM_SLEEP));
+  powerMonitor.on("lock-screen", () => interruptRecording(INTERRUPT_REASON.SCREEN_LOCKED));
   if (process.platform === "darwin" && app.isPackaged) {
     startHidden ||= Boolean(app.getLoginItemSettings().wasOpenedAtLogin);
   }
@@ -1006,7 +1016,7 @@ app.whenReady().then(async () => {
     : brandMigration.sourcePath || existingLegacyUserDataPath || targetUserDataPath;
   initDb(activeUserDataPath);
   historyWriteQueue = createHistoryWriteQueue({
-    insert: insertTranscription,
+    insert: (text, literal) => insertTranscription(text, undefined, literal),
     trim: trimTranscriptions,
     onError: (error) => console.error("Could not persist transcription history:", error)
   });
@@ -1109,7 +1119,8 @@ ipcMain.handle("delivery:commit", async (_event, text, options = {}) => {
   const pasteMs = paste ? Math.round(performance.now() - pasteStartedAt) : 0;
   const visibleAtEpochMs = Date.now();
 
-  if (options.saveHistory !== false) historyWriteQueue.enqueue(text, options.historyLimit);
+  const literal = typeof options.literal === "string" && options.literal.length <= MAX_LITERAL_LENGTH ? options.literal : undefined;
+  if (options.saveHistory !== false) historyWriteQueue.enqueue(text, options.historyLimit, literal);
   return {
     pasted: paste && pasteResult.ok,
     reason: paste ? pasteResult.reason : undefined,

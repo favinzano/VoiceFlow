@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { cleanTranscription } = require("./text-cleanup.cjs");
+const { cleanTranscription, cleanTranscriptionDetailed } = require("./text-cleanup.cjs");
 
 const cleanupCases = [
   ["eh bueno necesito necesito enviar esto", "Necesito enviar esto."],
@@ -62,4 +62,26 @@ assert.equal(
 assert.equal(cleanTranscription("eh bueno hola", { cleanup: false }), "Eh bueno hola.");
 assert.equal(cleanTranscription("hola", { appendSpace: true }), "Hola. ");
 
-console.log(`${cleanupCases.length + addressCases.length + 4} text pipeline cases passed`);
+// Transcripción literal y guardia de contenido
+const detailed = cleanTranscriptionDetailed("  eh   bueno hola  ");
+assert.equal(detailed.literal, "eh bueno hola", "literal conserva las palabras con espacios normalizados");
+assert.equal(detailed.text, "Hola.", "texto limpio");
+assert.equal(detailed.guarded, false, "sin guardia en limpieza normal");
+
+const repeated = cleanTranscriptionDetailed("no no no no no no no no");
+assert.equal(repeated.guarded, true, "la guardia se activa si la limpieza se come la mitad del contenido");
+assert.equal(repeated.text, "No no no no no no no no.", "se conserva el contenido sin quitar repeticiones");
+assert.equal(repeated.literal, "no no no no no no no no");
+assert.equal(cleanTranscription("no no no no no no no no"), "No no no no no no no no.", "cleanTranscription aplica la guardia");
+
+assert.equal(cleanTranscriptionDetailed("sí sí").guarded, false, "frases cortas no activan la guardia");
+assert.equal(cleanTranscriptionDetailed("gracias por ver el video").text, "", "artefactos de silencio siguen descartándose");
+assert.equal(cleanTranscriptionDetailed("[Música]").literal, "[Música]", "el literal se conserva aunque el texto quede vacío");
+assert.equal(cleanTranscriptionDetailed("").literal, "", "literal vacío");
+assert.equal(
+  cleanTranscriptionDetailed("eh bueno hola", { cleanup: false }).guarded,
+  false,
+  "sin limpieza no hay guardia"
+);
+
+console.log(`${cleanupCases.length + addressCases.length + 15} text pipeline cases passed`);

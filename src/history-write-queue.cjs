@@ -2,12 +2,12 @@ function createHistoryWriteQueue({ insert, trim, schedule = setImmediate, onErro
   let queue = Promise.resolve();
   let pending = 0;
 
-  function enqueue(text, limit) {
+  function enqueue(text, limit, literal) {
     pending += 1;
     queue = queue.catch(() => {})
       .then(() => new Promise((resolve) => schedule(resolve)))
       .then(() => {
-        const row = insert(text);
+        const row = insert(text, literal);
         trim(limit);
         return row;
       })
