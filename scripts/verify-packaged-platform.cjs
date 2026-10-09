@@ -22,6 +22,12 @@ function assertDirectoryAbsent(directoryPath, label) {
   assert.equal(fs.existsSync(directoryPath), false, `${label} should have been excluded: ${directoryPath}`);
 }
 
+function findNodeBinary(directoryPath) {
+  if (!fs.existsSync(directoryPath)) return undefined;
+  const name = fs.readdirSync(directoryPath).find((entry) => entry.endsWith('.node'));
+  return name ? path.join(directoryPath, name) : undefined;
+}
+
 function verifyBinaryArchitecture(filePath, platform, arch) {
   if (platform === 'win32') return;
   const result = spawnSync('file', ['-b', filePath], { encoding: 'utf8' });
@@ -49,11 +55,18 @@ if (platform === 'win32') {
   assertFile(path.join(resources, 'native', 'win32-x64', brand.helperExecutable), 'Windows paste helper');
   assertDirectoryAbsent(path.join(unpackedModules, 'onnxruntime-node', 'bin', 'napi-v3', 'darwin'), 'macOS ONNX binaries');
   assertDirectoryAbsent(path.join(unpackedModules, 'onnxruntime-node', 'bin', 'napi-v3', 'linux'), 'Linux ONNX binaries');
+  assertDirectoryAbsent(path.join(unpackedModules, 'uiohook-napi', 'prebuilds', 'darwin-x64'), 'macOS keyboard hook binaries');
+  assertDirectoryAbsent(path.join(unpackedModules, 'uiohook-napi', 'prebuilds', 'linux-x64'), 'Linux keyboard hook binaries');
 } else {
   const nutPackage = platform === 'darwin' ? 'libnut-darwin' : 'libnut-linux';
   const nut = path.join(unpackedModules, '@nut-tree-fork', nutPackage, 'build', 'Release', 'libnut.node');
   assertFile(nut, `${platform} keyboard automation binding`);
   verifyBinaryArchitecture(nut, platform, arch);
+  // El modo mantener usa uiohook-napi en macOS y Linux: sin su binario no hay push-to-talk.
+  const hook = findNodeBinary(path.join(unpackedModules, 'uiohook-napi', 'prebuilds', `${platform}-${arch}`));
+  assert.ok(hook, `${platform} keyboard hook binding is missing for ${arch}`);
+  verifyBinaryArchitecture(hook, platform, arch);
+  assertDirectoryAbsent(path.join(unpackedModules, 'uiohook-napi', 'prebuilds', 'win32-x64'), 'Windows keyboard hook binaries');
   assertDirectoryAbsent(path.join(unpackedModules, 'onnxruntime-node', 'bin', 'napi-v3', 'win32'), 'Windows ONNX binaries');
   assertDirectoryAbsent(
     path.join(unpackedModules, 'onnxruntime-node', 'bin', 'napi-v3', platform === 'darwin' ? 'linux' : 'darwin'),

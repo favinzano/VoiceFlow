@@ -11,13 +11,23 @@ assert.equal(windows.autoStart, true);
 for (const platform of ['darwin', 'linux']) {
   const capabilities = resolvePlatformCapabilities(platform, true);
   assert.deepEqual(capabilities.inferenceDevices, ['cpu']);
-  assert.deepEqual(capabilities.shortcutModes, ['toggle']);
+  assert.deepEqual(capabilities.shortcutModes, ['toggle', 'hold']);
   assert.equal(capabilities.autoStart, true);
   assert.deepEqual(
     normalizePlatformSettings({ inferenceDevice: 'dml', shortcutMode: 'hold', autoStartEnabled: true }, capabilities),
-    { inferenceDevice: 'cpu', shortcutMode: 'toggle', autoStartEnabled: true }
+    { inferenceDevice: 'cpu', shortcutMode: 'hold', autoStartEnabled: true }
   );
 }
+
+// Wayland no permite escuchar el teclado global: el modo mantener no se ofrece.
+const wayland = resolvePlatformCapabilities('linux', true, { sessionType: 'wayland' });
+assert.deepEqual(wayland.shortcutModes, ['toggle']);
+assert.equal(wayland.holdUnavailableReason, 'wayland');
+assert.equal(normalizePlatformSettings({ shortcutMode: 'hold' }, wayland).shortcutMode, 'toggle');
+assert.deepEqual(resolvePlatformCapabilities('linux', true, { sessionType: 'x11' }).shortcutModes, ['toggle', 'hold']);
+assert.deepEqual(resolvePlatformCapabilities('linux', true, { sessionType: undefined }).shortcutModes, ['toggle', 'hold']);
+assert.equal(resolvePlatformCapabilities('darwin', true, { sessionType: 'wayland' }).shortcutModes.includes('hold'), true);
+assert.equal(resolvePlatformCapabilities('win32', true).holdUnavailableReason, undefined);
 
 const development = resolvePlatformCapabilities('linux', false);
 assert.equal(development.autoStart, false);
@@ -27,4 +37,4 @@ const unsupported = resolvePlatformCapabilities('freebsd', true);
 assert.equal(unsupported.autoStart, false);
 assert.deepEqual(unsupported.inferenceDevices, ['cpu']);
 
-console.log('Platform capabilities: 16 checks passed.');
+console.log('Platform capabilities: 24 checks passed.');
