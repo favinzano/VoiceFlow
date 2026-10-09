@@ -20,7 +20,7 @@ function check(actual, expected, label) {
 // Normalización de entradas
 check(normalizeEntry("  VoiceFlow  "), { term: "VoiceFlow", aliases: [] }, "recorta espacios");
 check(normalizeEntry("José"), { term: "José", aliases: [] }, "NFD pasa a NFC");
-check(normalizeEntry("Next   Step\tAI"), { term: "Next Step AI", aliases: [] }, "colapsa espacios internos");
+check(normalizeEntry("Nova   Plan\tPro"), { term: "Nova Plan Pro", aliases: [] }, "colapsa espacios internos");
 check(normalizeEntry(""), null, "rechaza vacío");
 check(normalizeEntry("   "), null, "rechaza solo espacios");
 check(normalizeEntry(42), null, "rechaza tipos no válidos");
@@ -28,8 +28,8 @@ check(normalizeEntry("a".repeat(MAX_TERM_LENGTH + 1)), null, "rechaza términos 
 check(normalizeEntry("a".repeat(MAX_TERM_LENGTH)).term.length, MAX_TERM_LENGTH, "acepta el largo máximo");
 check(normalizeEntry("Hola\u0000Mundo").term, "HolaMundo", "quita caracteres de control");
 check(
-  normalizeEntry({ term: "NextStepAI", aliases: ["nexto step ai", "NEXTO STEP AI", "  ", "nextstepai"] }),
-  { term: "NextStepAI", aliases: ["nexto step ai"] },
+  normalizeEntry({ term: "NovaPlan", aliases: ["nuova plan", "NUOVA PLAN", "  ", "novaplan"] }),
+  { term: "NovaPlan", aliases: ["nuova plan"] },
   "aliases únicos, sin vacíos y sin repetir el término"
 );
 check(
@@ -39,7 +39,7 @@ check(
 );
 
 // Entrada desde texto: "término = alias1, alias2"
-check(parseEntryInput("NextStepAI = nexto step ai, next step ai"), { term: "NextStepAI", aliases: ["nexto step ai", "next step ai"] }, "parsea aliases");
+check(parseEntryInput("NovaPlan = nuova plan, nova plan"), { term: "NovaPlan", aliases: ["nuova plan", "nova plan"] }, "parsea aliases");
 check(parseEntryInput("VoiceFlow"), { term: "VoiceFlow", aliases: [] }, "parsea solo término");
 check(parseEntryInput("= alias"), null, "rechaza término vacío");
 
@@ -48,8 +48,8 @@ check(normalizeDictionary(["VoiceFlow", "voiceflow", "Aztec"]), ["VoiceFlow", "A
 check(normalizeDictionary(["VoiceFlow", 5, null, "", { nope: true }]), ["VoiceFlow"], "descarta entradas inválidas");
 check(normalizeDictionary("no es lista"), [], "tolera entrada que no es lista");
 check(
-  normalizeDictionary([{ term: "NextStepAI", aliases: ["nexto step ai"] }, "Aztec"]),
-  [{ term: "NextStepAI", aliases: ["nexto step ai"] }, "Aztec"],
+  normalizeDictionary([{ term: "NovaPlan", aliases: ["nuova plan"] }, "Aztec"]),
+  [{ term: "NovaPlan", aliases: ["nuova plan"] }, "Aztec"],
   "conserva cadenas simples y objetos con alias"
 );
 check(
@@ -86,20 +86,20 @@ check(applyDictionary("", ["VoiceFlow"]), "", "texto vacío");
 
 // Aliases
 check(
-  applyDictionary("abre nexto step ai ahora", [{ term: "NextStepAI", aliases: ["nexto step ai"] }]),
-  "abre NextStepAI ahora",
+  applyDictionary("abre nuova plan ahora", [{ term: "NovaPlan", aliases: ["nuova plan"] }]),
+  "abre NovaPlan ahora",
   "alias de varias palabras"
 );
 check(
-  applyDictionary("Nexto   Step AI funciona", [{ term: "NextStepAI", aliases: ["nexto step ai"] }]),
-  "NextStepAI funciona",
+  applyDictionary("Nuova   Plan funciona", [{ term: "NovaPlan", aliases: ["nuova plan"] }]),
+  "NovaPlan funciona",
   "alias sin distinguir mayúsculas ni espacios"
 );
 
 // Coincidencia aproximada
 check(applyDictionary("probamos voiceflo ayer", ["VoiceFlow"]), "probamos VoiceFlow ayer", "una letra faltante");
 check(applyDictionary("probamos boiceflow ayer", ["VoiceFlow"]), "probamos VoiceFlow ayer", "v y b confundidas");
-check(applyDictionary("abre next step ai ahora", ["NextStepAI"]), "abre NextStepAI ahora", "palabras separadas que forman el término");
+check(applyDictionary("abre nova plan ahora", ["NovaPlan"]), "abre NovaPlan ahora", "palabras separadas que forman el término");
 check(applyDictionary("habla con Jose ahora", ["José"]), "habla con José ahora", "acento omitido");
 
 // Lo que no debe cambiar
