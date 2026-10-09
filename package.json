@@ -8,7 +8,7 @@
     "scripts": {
         "build": "esbuild ./src/renderer.js --bundle --platform=browser --format=iife --outfile=./dist/renderer.js",
         "build:native": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-native.ps1",
-        "postinstall": "electron-rebuild -f -w better-sqlite3",
+        "postinstall": "electron-rebuild -f -o better-sqlite3",
         "build:icons": "node scripts/build-icons.cjs",
         "start": "electron .",
         "dev": "npm run build && electron .",
