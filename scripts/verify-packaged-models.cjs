@@ -39,6 +39,10 @@ async function run() {
       const result = spawnSync(executable, [
         `--self-test-model=${profileId}`,
         `--self-test-user-data=${userData}`,
+        // Desde 1.2.3 la app descarga el modelo una vez si falta (ver PRIVACY.md). Aquí se
+        // desactiva esa descarga para comprobar que, sin descarga ni paquete offline,
+        // el binario empaquetado falla cerrado y no intenta ninguna conexión.
+        "--self-test-local-only",
         "--disable-gpu"
       ], {
         encoding: "utf8",
@@ -46,7 +50,7 @@ async function run() {
         windowsHide: true
       });
       assert.notEqual(result.status, null, `${profileId}: la autoprueba excedió el tiempo límite`);
-      assert.notEqual(result.status, 0, `${profileId}: una instalación limpia no debe obtener modelos remotos`);
+      assert.notEqual(result.status, 0, `${profileId}: con la descarga desactivada, una instalación limpia debe fallar cerrada`);
       const diagnostics = `${result.stdout || ""}\n${result.stderr || result.error || ""}`;
       assert.match(
         diagnostics,
@@ -57,7 +61,7 @@ async function run() {
       console.log(`Packaged ${profileId} local-only guard verified`);
     }
 
-    console.log("Packaged model policy verified: clean installs fail closed until a verified offline pack is installed.");
+    console.log("Packaged model policy verified: with remote downloads disabled, clean installs fail closed until a verified offline pack is installed.");
   });
 }
 

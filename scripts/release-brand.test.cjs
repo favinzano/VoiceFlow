@@ -206,6 +206,16 @@ if (process.platform === 'win32') {
   assert.doesNotMatch(signatureSource, /Get-ChildItem/);
 }
 
+// La descarga de modelos está activa en producción (1.2.3); solo el self-test empaquetado
+// puede desactivarla con --self-test-local-only. El verificador y la app deben coincidir.
+const localOnlyMainSource = fs.readFileSync(path.join(root, 'src', 'main.cjs'), 'utf8');
+const packagedModelsSource = fs.readFileSync(path.join(__dirname, 'verify-packaged-models.cjs'), 'utf8');
+assert.ok(
+  localOnlyMainSource.includes('allowRemoteModels: !(selfTestPaths && process.argv.includes("--self-test-local-only"))'),
+  'remote model downloads can only be disabled by the self-test flag'
+);
+assert.match(packagedModelsSource, /"--self-test-local-only"/, 'packaged model check disables downloads explicitly');
+
 require('./generate-release-notes.test.cjs');
 require('../src/self-test-paths.test.cjs');
 require('../src/login-item-transition.test.cjs');
