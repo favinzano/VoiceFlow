@@ -9,8 +9,8 @@ function run() {
   );
   // Varias palabras a una (y viceversa)
   assert.deepEqual(
-    suggestCorrections("Usamos nexto step ai hoy", "Usamos NextStepAI hoy"),
-    [{ term: "NextStepAI", alias: "nexto step ai" }]
+    suggestCorrections("Usamos lumina ap hoy", "Usamos LuminaApp hoy"),
+    [{ term: "LuminaApp", alias: "lumina ap" }]
   );
   assert.deepEqual(
     suggestCorrections("Abre VoiceFlow ahora", "Abre voz flow ahora").length,
@@ -31,8 +31,8 @@ function run() {
   // Reescritura casi total: no es una corrección
   assert.deepEqual(suggestCorrections("uno dos tres cuatro", "alfa beta gamma delta"), []);
   // Varias correcciones en un mismo texto
-  const many = suggestCorrections("Abinsano trabaja en nexto step ai con Karla", "Avinzano trabaja en NextStepAI con Carla");
-  assert.deepEqual(many.map((s) => s.term), ["Avinzano", "NextStepAI", "Carla"]);
+  const many = suggestCorrections("Abinsano trabaja en lumina ap con Karla", "Avinzano trabaja en LuminaApp con Carla");
+  assert.deepEqual(many.map((s) => s.term), ["Avinzano", "LuminaApp", "Carla"]);
   // Entradas inválidas
   assert.deepEqual(suggestCorrections(undefined, "x"), []);
   assert.deepEqual(suggestCorrections("x", null), []);
