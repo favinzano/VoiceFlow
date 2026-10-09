@@ -32,6 +32,11 @@ jobs:
       - run: npm run test:production
       - run: npm run test:models
       - run: npm audit --omit=dev --audit-level=critical
+      - name: Install X11 development headers (uiohook-napi)
+        # electron-builder reconstruye los módulos nativos; uiohook-napi (modo mantener) compila libuiohook en Linux.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxtst-dev libxt-dev libxrandr-dev libxkbfile-dev libxkbcommon-dev libxkbcommon-x11-dev libx11-xcb-dev
       - run: npm run release:linux
       - name: Verify Linux package
         run: |

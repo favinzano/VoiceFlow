@@ -271,7 +271,9 @@ function applyPlatformCapabilities() {
   holdOption.disabled = !supportsHold;
   elements.shortcutModeDescription.textContent = supportsHold
     ? "Alternar inicia y detiene con cada pulsación. Mantener graba hasta soltar."
-    : "Alternar inicia y detiene la grabación con cada pulsación.";
+    : capabilities.holdUnavailableReason === "wayland"
+      ? "Alternar inicia y detiene la grabación con cada pulsación. Mantener necesita una sesión X11: Wayland no permite escuchar el teclado global."
+      : "Alternar inicia y detiene la grabación con cada pulsación.";
 
   const platformName = platformNames[voiceAPI.runtime.platform] || "el sistema";
   elements.autoStartTitle.textContent = `Iniciar con ${platformName}`;

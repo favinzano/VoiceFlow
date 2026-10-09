@@ -1,4 +1,4 @@
-const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, powerMonitor, session, screen, shell, Tray } = require("electron");
+const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, powerMonitor, session, screen, shell, systemPreferences, Tray } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const fs = require("fs/promises");
 const fsSync = require("node:fs");
@@ -30,6 +30,8 @@ const {
 const { createInputStrategy, resolveWin32HelperPath, PASTE_FAILURE_REASON } = require("./input-helper.cjs");
 const { notifyPastePermissionDenied } = require("./paste-permission-notice.cjs");
 const { INTERRUPT_REASON } = require("./recording-safety.cjs");
+const { createKeyHook } = require("./hold-shortcut.cjs");
+const { assertHoldModeAvailable, assertKeyHookPermissions } = require("./key-hook-permissions.cjs");
 const { resolveWhisperProfile } = require("./whisper-profiles.cjs");
 const { loadModelWithRetry } = require("./model-recovery.cjs");
 const { createTranscriptionMetricsStore } = require("./transcription-metrics.cjs");
@@ -65,6 +67,7 @@ let waitingForHistoryFlush = false;
 const MAX_LITERAL_LENGTH = 20000;
 let pasteTarget;
 let shortcutRecording = false;
+let promptForKeyHookPermission = false;
 let tray;
 let isQuitting = false;
 let closeDialogOpen = false;
@@ -73,6 +76,8 @@ let activeShortcuts;
 let shortcutRegistrationStatus = { record: false, reprocess: false };
 let activeShortcutMode = "toggle";
 const shortcutMonitors = new Map();
+// macOS/Linux: pulsar y soltar se detectan con un gancho global de teclado (uiohook-napi).
+const keyHook = createKeyHook({ loadUiohook: () => require("uiohook-napi"), platform: process.platform });
 let requestedTaskbarState = "idle";
 let modelDownloadActive = false;
 let taskbarPulseTimer;
@@ -359,6 +364,8 @@ function handleHoldShortcutPressed() {
 // Suspensión o bloqueo de pantalla: el renderer cierra la grabación y procesa lo capturado.
 function interruptRecording(reason) {
   shortcutRecording = false;
+  // Con el atajo mantenido, el "soltar" puede perderse (bloqueo, suspensión): se limpia el seguimiento.
+  shortcutMonitors.get("record")?.watcher?.reset();
   sendToMainWindow("recording:interrupt", reason);
 }
 
@@ -380,14 +387,39 @@ async function handleReprocessShortcut() {
 function stopShortcutMonitors() {
   const hadMonitors = shortcutMonitors.size > 0;
   for (const state of shortcutMonitors.values()) {
-    if (!state.process.killed) state.process.kill();
+    if (state.watcher) state.watcher.stop();
+    else if (!state.process.killed) state.process.kill();
   }
   shortcutMonitors.clear();
   if (hadMonitors || activeShortcutMode === "hold") handleHoldShortcutReleased();
 }
 
+function currentCapabilities() {
+  return resolvePlatformCapabilities(process.platform, app.isPackaged, { sessionType: process.env.XDG_SESSION_TYPE });
+}
+
+// El aviso de permisos de macOS solo debe aparecer cuando el usuario cambia el atajo o el modo.
+function withPermissionPrompt(action) {
+  promptForKeyHookPermission = true;
+  try {
+    return action();
+  } finally {
+    promptForKeyHookPermission = false;
+  }
+}
+
+function startKeyHookMonitor(accelerator) {
+  assertKeyHookPermissions({ platform: process.platform, systemPreferences, prompt: promptForKeyHookPermission });
+  const watcher = keyHook.watch(accelerator, {
+    onPressed: handleHoldShortcutPressed,
+    onReleased: handleHoldShortcutReleased,
+    onError: (error) => console.error("Hold shortcut handler failed:", error)
+  });
+  shortcutMonitors.set("record", { watcher });
+}
+
 function startShortcutMonitor(kind, accelerator, mode = "hold") {
-  if (process.platform !== "win32") throw new Error("El modo mantener solo esta disponible en Windows.");
+  if (process.platform !== "win32") throw new Error("El monitor nativo de atajos solo existe en Windows.");
   const helper = pasteHelperPath();
   if (!fsSync.existsSync(helper)) throw new Error("Falta el helper nativo requerido para el modo mantener.");
 
@@ -442,6 +474,7 @@ function registerGlobalShortcuts(shortcuts, mode = activeShortcutMode) {
   }
 
   if (!["toggle", "hold"].includes(mode)) throw new Error(`Unsupported shortcut mode: ${mode}`);
+  if (mode === "hold") assertHoldModeAvailable(currentCapabilities());
 
   const previous = activeShortcuts;
   const previousMode = activeShortcutMode;
@@ -449,12 +482,14 @@ function registerGlobalShortcuts(shortcuts, mode = activeShortcutMode) {
   globalShortcut.unregisterAll();
   let recordRegistered = false;
   let reprocessRegistered = false;
+  let registrationFailure;
   try {
     if (process.platform === "win32") {
       startShortcutMonitor("record", shortcuts.record, mode);
       recordRegistered = true;
     } else if (mode === "hold") {
-      throw new Error("El modo mantener solo esta disponible en Windows.");
+      startKeyHookMonitor(shortcuts.record);
+      recordRegistered = true;
     } else {
       recordRegistered = globalShortcut.register(shortcuts.record, handleRecordShortcut)
         && globalShortcut.isRegistered(shortcuts.record);
@@ -468,6 +503,7 @@ function registerGlobalShortcuts(shortcuts, mode = activeShortcutMode) {
         && globalShortcut.isRegistered(shortcuts.reprocess);
     }
   } catch (error) {
+    registrationFailure = error;
     console.error("Invalid global shortcut:", error);
   }
 
@@ -487,20 +523,21 @@ function registerGlobalShortcuts(shortcuts, mode = activeShortcutMode) {
         startShortcutMonitor("record", previous.record, previousMode);
         startShortcutMonitor("reprocess", previous.reprocess, "toggle");
       }
-      else if (previousMode === "hold") throw new Error("El modo mantener solo esta disponible en Windows.");
+      else if (previousMode === "hold") startKeyHookMonitor(previous.record);
       else globalShortcut.register(previous.record, handleRecordShortcut);
       if (process.platform !== "win32") globalShortcut.register(previous.reprocess, handleReprocessShortcut);
       activeShortcuts = previous;
       activeShortcutMode = previousMode;
       shortcutRegistrationStatus = {
-        record: process.platform === "win32" || globalShortcut.isRegistered(previous.record),
+        record: process.platform === "win32" || previousMode === "hold" || globalShortcut.isRegistered(previous.record),
         reprocess: process.platform === "win32" || globalShortcut.isRegistered(previous.reprocess)
       };
     } catch (restoreError) {
       console.error("Failed to restore previous shortcuts:", restoreError);
     }
   }
-  throw new Error("Windows rechazó uno de los atajos. Puede estar en uso por otra aplicación.");
+  if (process.platform !== "win32" && mode === "hold" && registrationFailure) throw new Error(registrationFailure.message);
+  throw new Error("El sistema rechazó uno de los atajos. Puede estar en uso por otra aplicación.");
 }
 
 function createTray() {
@@ -696,7 +733,10 @@ function getCurrentLegalStatus() {
 
 function registerAcceptedShortcuts() {
   try {
-    registerGlobalShortcuts(getShortcuts(activeUserDataPath), getShortcutMode(activeUserDataPath));
+    // Un modo guardado que este sistema ya no admite (p. ej. mantener en Wayland) se ignora sin tocar los atajos.
+    const savedMode = getShortcutMode(activeUserDataPath);
+    const mode = savedMode === "hold" && !currentCapabilities().shortcutModes.includes("hold") ? "toggle" : savedMode;
+    registerGlobalShortcuts(getShortcuts(activeUserDataPath), mode);
   } catch (error) {
     console.error("Could not register global shortcuts:", error);
     try {
@@ -722,7 +762,7 @@ function activateAcceptedRuntime() {
 }
 
 function rendererBrandArguments() {
-  const capabilities = resolvePlatformCapabilities(process.platform, app.isPackaged);
+  const capabilities = currentCapabilities();
   return [
     `--voiceflow-brand-display-name=${encodeURIComponent(brand.displayName)}`,
     `--voiceflow-brand-base-name=${encodeURIComponent(brand.baseName)}`,
@@ -1343,7 +1383,7 @@ ipcMain.handle("app:get-close-behavior", () => getCloseBehavior(activeUserDataPa
 ipcMain.handle("app:set-close-behavior", (_event, behavior) => setCloseBehavior(activeUserDataPath, behavior));
 ipcMain.handle("preferences:get-shortcuts", () => activeShortcuts || getShortcuts(activeUserDataPath));
 ipcMain.handle("preferences:set-shortcuts", (_event, shortcuts) => {
-  const registered = registerGlobalShortcuts(shortcuts, activeShortcutMode);
+  const registered = withPermissionPrompt(() => registerGlobalShortcuts(shortcuts, activeShortcutMode));
   setShortcuts(activeUserDataPath, registered);
   return registered;
 });
@@ -1351,7 +1391,7 @@ ipcMain.handle("preferences:get-shortcut-mode", () => activeShortcutMode);
 ipcMain.handle("preferences:set-shortcut-mode", (_event, mode) => {
   const shortcuts = activeShortcuts || getShortcuts(activeUserDataPath);
   const previousMode = activeShortcutMode;
-  registerGlobalShortcuts(shortcuts, mode);
+  withPermissionPrompt(() => registerGlobalShortcuts(shortcuts, mode));
   try {
     return setShortcutMode(activeUserDataPath, mode);
   } catch (error) {

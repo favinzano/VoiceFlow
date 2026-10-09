@@ -28,6 +28,7 @@ distribuyen dentro de la aplicación empaquetada. Electron también distribuye:
 | Sharp | 0.34.5 | Dependencia de procesamiento de imágenes de Transformers.js | Apache License 2.0 |
 | Sharp Windows x64 (`@img/sharp-win32-x64`) | 0.34.5 | Binario nativo precompilado | Apache License 2.0 AND LGPL-3.0-or-later |
 | Hugging Face Jinja | 0.5.9 | Plantillas utilizadas por Transformers.js | MIT |
+| uiohook-napi | 1.5.5 | Detección de pulsar y soltar del atajo en macOS y Linux (modo mantener) | MIT; incluye libuiohook bajo LGPL-3.0-or-later |
 
 Fuentes y licencias:
 
@@ -39,6 +40,8 @@ Fuentes y licencias:
 - Sharp: <https://github.com/lovell/sharp>
 - libvips: <https://github.com/libvips/libvips>
 - Hugging Face Jinja: <https://github.com/huggingface/huggingface.js>
+- uiohook-napi: <https://github.com/SnosMe/uiohook-napi>
+- libuiohook: <https://github.com/kwhat/libuiohook>
 
 ## Modelos Descargados Por La Aplicación
 
@@ -136,6 +139,13 @@ pueden obtenerse y reconstruirse desde sus proyectos originales:
 
 - Sharp: <https://github.com/lovell/sharp>
 - libvips: <https://github.com/libvips/libvips>
+
+libuiohook (LGPL-3.0-or-later) se enlaza dentro del módulo nativo `uiohook-napi.node`,
+que se distribuye como archivo independiente en `app.asar.unpacked` y puede
+sustituirse por una versión reconstruida desde el código fuente original:
+
+- uiohook-napi: <https://github.com/SnosMe/uiohook-napi>
+- libuiohook: <https://github.com/kwhat/libuiohook>
 
 Para solicitar una copia de los textos de licencia incluidos con felipe
 avinzano VoiceFlow `1.1.11` o reportar una omisión, abre una incidencia en:
