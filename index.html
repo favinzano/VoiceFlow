@@ -96,8 +96,8 @@
             <div><p class="eyebrow">03 / Precisión personal</p><h1>Palabras que deben<br /><span class="hero-emphasis">quedar bien</span>.</h1><p class="page-lead">Añade nombres, marcas y términos técnicos. Se aplicarán después de cada transcripción.</p></div>
           </header>
           <section class="feature-card dictionary-builder">
-            <div><span class="card-kicker">Nuevo término</span><h2>Enseña una palabra al sistema.</h2><p>Escribe la forma exacta que quieres conservar.</p></div>
-            <form id="dictionaryForm"><input id="dictionaryInput" maxlength="80" placeholder="Ej. felipe avinzano" autocomplete="off" /><button type="submit">Añadir término</button><small class="input-counter" id="dictionaryCounter">0 / 80</small></form>
+            <div><span class="card-kicker">Nuevo término</span><h2>Enseña una palabra al sistema.</h2><p>Escribe la forma exacta que quieres conservar. Para palabras que se oyen mal, añade cómo suenan: <em>Avinzano = abinsano, avinsano</em>.</p></div>
+            <form id="dictionaryForm"><input id="dictionaryInput" maxlength="200" placeholder="Ej. Avinzano = abinsano" autocomplete="off" /><button type="submit">Añadir término</button><small class="input-counter" id="dictionaryCounter">0 / 200</small></form>
           </section>
           <div class="dictionary-list" id="dictionaryList"></div>
         </div>
@@ -136,6 +136,7 @@
               <label class="setting-row"><span><strong>Agregar espacio final</strong><small>Facilita continuar escribiendo después del dictado.</small></span><input type="checkbox" id="appendSpace" /></label>
               <label class="setting-row"><span><strong>Limpieza y sintaxis local</strong><small>Reduce muletillas, corrige espacios, puntuación y errores sintácticos comunes.</small></span><input type="checkbox" id="cleanupText" /></label>
               <label class="setting-row"><span><strong>Aplicar diccionario</strong><small>Respeta tus nombres y términos personalizados.</small></span><input type="checkbox" id="dictionaryEnabled" /></label>
+              <label class="setting-row"><span><strong>Sensibilidad del diccionario</strong><small>Qué tan parecida debe sonar una palabra para corregirla con tus términos.</small></span><select id="dictionaryThreshold"><option value="0">Solo coincidencias exactas</option><option value="0.12">Conservadora</option><option value="0.18">Equilibrada</option><option value="0.25">Amplia</option></select></label>
             </section>
 
             <section class="settings-group">

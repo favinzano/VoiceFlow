@@ -6,6 +6,7 @@ const {
   STATE_SCHEMA_VERSION,
   backupPath,
   migrateLegacyState,
+  normalizeState,
   readState,
   statePath,
   writeState
@@ -36,8 +37,13 @@ async function run() {
   assert.equal(preserved.history[0].text, "hola");
   await assert.rejects(() => writeState(root, { schemaVersion: STATE_SCHEMA_VERSION + 1 }));
 
+  const dictionaryState = normalizeState({
+    dictionary: ["Aztec", "aztec", { term: "Avinzano", aliases: ["abinsano"] }, 7, ""]
+  });
+  assert.deepEqual(dictionaryState.dictionary, ["Aztec", { term: "Avinzano", aliases: ["abinsano"] }]);
+
   await fs.rm(root, { recursive: true, force: true });
-  console.log("Local state: 9 checks passed.");
+  console.log("Local state: 10 checks passed.");
 }
 
 run().catch((error) => {

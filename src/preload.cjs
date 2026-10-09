@@ -88,6 +88,7 @@ contextBridge.exposeInMainWorld("voiceAPI", {
   onShortcutPressed: (callback) => ipcRenderer.on("shortcut:pressed", callback),
   onShortcutReleased: (callback) => ipcRenderer.on("shortcut:released", callback),
   onReprocess: (callback) => ipcRenderer.on("shortcut:reprocess", callback),
+  onRecordingInterrupt: (callback) => ipcRenderer.on("recording:interrupt", callback),
   onShortcutError: (callback) => ipcRenderer.on("shortcut:error", callback),
   onModelProgress: (callback) => ipcRenderer.on("model:progress", (_event, progress) => callback(progress)),
   onNavigate: (callback) => ipcRenderer.on("app:navigate", (_event, panel) => callback(panel)),

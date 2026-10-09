@@ -17,7 +17,20 @@ const { createHistoryWriteQueue } = require("./history-write-queue.cjs");
   await queue.flush();
   assert.deepEqual(calls, [["insert", "uno"], ["trim", 30]]);
   assert.equal(queue.pending(), 0);
-  console.log("History write queue: 5 checks passed.");
+
+  const literalCalls = [];
+  const literalScheduled = [];
+  const literalQueue = createHistoryWriteQueue({
+    insert: (text, literal) => literalCalls.push([text, literal]),
+    trim: () => {},
+    schedule: (callback) => literalScheduled.push(callback)
+  });
+  literalQueue.enqueue("Hola.", 30, "eh hola");
+  while (!literalScheduled.length) await Promise.resolve();
+  literalScheduled.shift()();
+  await literalQueue.flush();
+  assert.deepEqual(literalCalls, [["Hola.", "eh hola"]], "el literal llega a la inserción");
+  console.log("History write queue: 6 checks passed.");
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

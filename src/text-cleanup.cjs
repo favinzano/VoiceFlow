@@ -1,8 +1,8 @@
-const TOP_LEVEL_DOMAINS = "com|co|org|net|io|ai|es|mx|us|dev|app|edu|gov";
+const { applyDictionary } = require("./dictionary.cjs");
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+const MIN_GUARD_WORDS = 6;
+const MIN_KEPT_RATIO = 0.5;
+const TOP_LEVEL_DOMAINS = "com|co|org|net|io|ai|es|mx|us|dev|app|edu|gov";
 
 function normalizeRawInput(text) {
   return String(text || "")
@@ -163,18 +163,12 @@ function ensureTerminalPunctuation(text) {
   return `${text}.`;
 }
 
-function applyDictionary(text, dictionary) {
-  return dictionary.reduce((result, term) => {
-    const escaped = escapeRegExp(term);
-    return result.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, "giu"), term);
-  }, text);
-}
-
-function cleanTranscription(text, options = {}) {
+function runPipeline(text, options = {}) {
   const {
     cleanup = true,
     dictionaryEnabled = true,
     dictionary = [],
+    dictionaryThreshold,
     appendSpace = false
   } = options;
 
@@ -191,13 +185,39 @@ function cleanTranscription(text, options = {}) {
   result = capitalizeSentences(result);
   result = ensureTerminalPunctuation(result);
   result = groupSentencesIntoParagraphs(result);
-  if (dictionaryEnabled) result = applyDictionary(result, dictionary);
+  if (dictionaryEnabled) result = applyDictionary(result, dictionary, { threshold: dictionaryThreshold });
   if (appendSpace && result) result += " ";
   return result;
 }
 
+function countWords(text) {
+  return (text.match(/[\p{L}\p{N}]+/gu) || []).length;
+}
+
+// La limpieza nunca debe comerse el contenido: si elimina más de la mitad de las
+// palabras de una frase de 6 o más, se conserva la versión sin quitar muletillas ni repeticiones.
+function cleanTranscriptionDetailed(text, options = {}) {
+  const literal = normalizeRawInput(text);
+  const cleaned = runPipeline(text, options);
+  const rawWords = countWords(literal);
+  const cleanedWords = countWords(cleaned);
+  if (options.cleanup === false || !cleaned || rawWords < MIN_GUARD_WORDS || cleanedWords >= rawWords * MIN_KEPT_RATIO) {
+    return { text: cleaned, literal, guarded: false };
+  }
+  const safe = runPipeline(text, { ...options, cleanup: false });
+  if (countWords(safe) >= MIN_GUARD_WORDS && cleanedWords < countWords(safe) * MIN_KEPT_RATIO) {
+    return { text: safe, literal, guarded: true };
+  }
+  return { text: cleaned, literal, guarded: false };
+}
+
+function cleanTranscription(text, options = {}) {
+  return cleanTranscriptionDetailed(text, options).text;
+}
+
 module.exports = {
   cleanTranscription,
+  cleanTranscriptionDetailed,
   formatSpokenAddresses,
   normalizeSpacing,
   removeFillers,
