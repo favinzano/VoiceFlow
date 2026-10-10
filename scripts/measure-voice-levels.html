@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Medición de niveles de voz</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 0; padding: 28px; background: #14171c; color: #f2f4f7; }
+    h1 { font-size: 15px; font-weight: 600; margin: 0 0 18px; color: #9aa4b2; letter-spacing: .04em; text-transform: uppercase; }
+    #prompt { font-size: 22px; line-height: 1.35; min-height: 90px; }
+    #count { font-size: 56px; font-variant-numeric: tabular-nums; margin-top: 10px; }
+    #meter { height: 10px; background: #262b33; border-radius: 5px; margin-top: 18px; overflow: hidden; }
+    #bar { height: 100%; width: 100%; background: #4fd1a5; transform: scaleX(0); transform-origin: left; transition: transform 60ms linear; }
+  </style>
+</head>
+<body>
+  <h1>Medición local de niveles · nada sale de este equipo</h1>
+  <div id="prompt">Preparando el micrófono…</div>
+  <div id="count"></div>
+  <div id="meter"><div id="bar"></div></div>
+  <script>
+    const PHASES = [
+      { name: "ambiente", seconds: 4, prompt: "Silencio. No hables." },
+      { name: "voz-normal", seconds: 6, prompt: "Habla con tu volumen normal de dictado. Lee cualquier texto en voz alta." },
+      { name: "voz-baja", seconds: 6, prompt: "Habla más bajo, como en una oficina compartida o de noche." }
+    ];
+    const GET_READY_SECONDS = 3;
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const promptEl = document.getElementById("prompt");
+    const countEl = document.getElementById("count");
+    const barEl = document.getElementById("bar");
+
+    async function countdown(seconds, label) {
+      promptEl.textContent = label;
+      for (let remaining = seconds; remaining > 0; remaining -= 1) {
+        countEl.textContent = String(remaining);
+        await wait(1000);
+      }
+      countEl.textContent = "";
+    }
+
+    async function run() {
+      const wantedMic = (new URLSearchParams(location.search).get("mic") || "").toLowerCase();
+      // Same constraints as renderer.js so the levels match what the real detector sees.
+      const baseAudio = { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+      let stream = await navigator.mediaDevices.getUserMedia({ audio: baseAudio });
+      const devices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === "audioinput");
+      const match = wantedMic && devices.find((device) => device.label.toLowerCase().includes(wantedMic));
+      if (match) {
+        stream.getTracks().forEach((track) => track.stop());
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { ...baseAudio, deviceId: { exact: match.deviceId } } });
+      }
+      const deviceLabel = stream.getAudioTracks()[0]?.label || "desconocido";
+
+      const audioContext = new AudioContext();
+      await audioContext.audioWorklet.addModule("../src/pcm-capture-worklet.js");
+      const source = audioContext.createMediaStreamSource(stream);
+      const capture = new AudioWorkletNode(audioContext, "voiceflow-pcm-capture");
+      const silentGain = audioContext.createGain();
+      silentGain.gain.value = 0;
+      source.connect(capture);
+      capture.connect(silentGain);
+      silentGain.connect(audioContext.destination);
+
+      let current;
+      capture.port.onmessage = (event) => {
+        if (event.data?.type !== "level") return;
+        barEl.style.transform = `scaleX(${Math.min(1, event.data.rms * 10)})`;
+        current?.push([Math.round(performance.now()), event.data.rms]);
+      };
+
+      for (const phase of PHASES) {
+        await countdown(GET_READY_SECONDS, `Prepárate: ${phase.prompt}`);
+        current = [];
+        promptEl.textContent = `AHORA: ${phase.prompt}`;
+        await wait(phase.seconds * 1000);
+        window.measure.phase(phase.name, current);
+        current = undefined;
+      }
+      promptEl.textContent = "Listo. Revisa la terminal.";
+      window.measure.done({ deviceLabel, devices: devices.map((device) => device.label), sampleRate: audioContext.sampleRate });
+    }
+
+    run().catch((error) => window.measure.fail(`${error?.name || "Error"}: ${error?.message || error}`));
+  </script>
+</body>
+</html>

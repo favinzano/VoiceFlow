@@ -5,6 +5,7 @@ const { addEntry, normalizeDictionary, parseEntryInput } = require("./dictionary
 const { learnAlias, suggestCorrections } = require("./word-learning.cjs");
 const { resampleAudio, trimEdgeSilence } = require("./audio-quality.cjs");
 const { createVoiceActivityDetector } = require("./voice-activity.cjs");
+const { evaluateSpeechGate } = require("./speech-gate.cjs");
 const { INTERRUPT_REASON, interruptMessage, isRecordingTooLong, watchTrackEnded } = require("./recording-safety.cjs");
 const { resolveWhisperProfile } = require("./whisper-profiles.cjs");
 const { clearMigratedLegacyStorage, initializeProductionProfile, upgradeAccuracyDefault, upgradePerfDefault, revertExperimentalDmlDefault, revertWhisperCppEngine } = require("./data-migrations.cjs");
@@ -595,8 +596,9 @@ function interruptRecording(reason) {
 
 function handleVoiceLevel(rms) {
   if (!recording) return;
-  if (!settings.autoStopEnabled || autoStopPending) return;
-  if (!voiceActivityDetector?.update(rms)) return;
+  // Always feed the detector: the speech gate reads its summary even when auto-stop is off.
+  const silenceReached = voiceActivityDetector?.update(rms);
+  if (!silenceReached || !settings.autoStopEnabled || autoStopPending) return;
   autoStopPending = true;
   showToast("Silencio detectado. Procesando grabación.");
   finishRecording();
@@ -710,6 +712,15 @@ async function renderPerformance(metrics) {
   elements.performanceDetails.textContent = `Inferencia ${(metrics.inferenceMs / 1000).toFixed(1)} s · espera ${(modelWaitMs / 1000).toFixed(1)} s${endToPaste} · memoria ${diagnostics.memoryRssMb} MB RSS`;
 }
 
+async function rejectRecording(sessionId, statusDetail, overlayMessage) {
+  processing = false;
+  // UI first: a new recording can start while the cancel is in flight and must not be overwritten afterwards.
+  setStatus("idle", statusDetail);
+  finishOverlay("error", overlayMessage);
+  if (sessionId) await voiceAPI.transcription.cancel(sessionId).catch(() => {});
+  if (sessionId === transcriptionSessionId) transcriptionSessionId = undefined;
+}
+
 async function finishRecording() {
   if (!recording) return;
   const captureFinalizeStartedAt = performance.now();
@@ -719,15 +730,13 @@ async function finishRecording() {
   captureFinishedAtEpochMs = Date.now();
   const sessionId = transcriptionSessionId;
   await flushCapture();
+  // Must be read before releaseAudioCapture() drops the detector.
+  const speechSummary = voiceActivityDetector?.getSummary();
   const preprocessStartedAt = performance.now();
   try {
     lastAudio = collectRecording();
   } catch (error) {
-    processing = false;
-    if (sessionId) await voiceAPI.transcription.cancel(sessionId).catch(() => {});
-    if (sessionId === transcriptionSessionId) transcriptionSessionId = undefined;
-    setStatus("idle", error.message);
-    finishOverlay("error", "No pudimos procesar la grabación.");
+    await rejectRecording(sessionId, error.message, "No pudimos procesar la grabación.");
     return;
   } finally {
     await releaseAudioCapture();
@@ -738,19 +747,18 @@ async function finishRecording() {
   };
   const peak = lastAudio.reduce((maximum, sample) => Math.max(maximum, Math.abs(sample)), 0);
   if (lastAudio.length < 12000) {
-    processing = false;
-    if (sessionId) await voiceAPI.transcription.cancel(sessionId).catch(() => {});
-    if (sessionId === transcriptionSessionId) transcriptionSessionId = undefined;
-    setStatus("idle", "La grabación fue demasiado corta. Intenta de nuevo.");
-    finishOverlay("error", "La grabación fue demasiado corta.");
+    await rejectRecording(sessionId, "La grabación fue demasiado corta. Intenta de nuevo.", "La grabación fue demasiado corta.");
     return;
   }
   if (peak < 0.002) {
-    processing = false;
-    if (sessionId) await voiceAPI.transcription.cancel(sessionId).catch(() => {});
-    if (sessionId === transcriptionSessionId) transcriptionSessionId = undefined;
-    setStatus("idle", "No detectamos voz. Revisa el micrófono seleccionado.");
-    finishOverlay("error", "No detectamos voz. Revisa el micrófono.");
+    await rejectRecording(sessionId, "No detectamos voz. Revisa el micrófono seleccionado.", "No detectamos voz. Revisa el micrófono.");
+    return;
+  }
+  if (!evaluateSpeechGate(speechSummary).hasSpeech) {
+    // Discarded without a trace: no engine call, no history entry, nothing left to reprocess.
+    lastAudio = undefined;
+    await rejectRecording(sessionId, "No se detectó voz. Intenta de nuevo.", "No se detectó voz.");
+    showToast("No se detectó voz.");
     return;
   }
   processing = false;
