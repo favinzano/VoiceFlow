@@ -8,6 +8,24 @@
 
 Todos los cambios relevantes de felipe avinzano VoiceFlow se documentan en este archivo.
 
+## [1.2.8] - 2026-10-09
+
+### Añadido
+
+- **Alias en el diccionario** y transcripción literal, con protección de grabaciones (#9). El diccionario **aprende alias** a partir de las entradas del historial que corriges (#13).
+- Modo **mantener para hablar** (hold-to-talk) del atajo en macOS y Linux (#11).
+- El modelo de Whisper se **descarga de memoria tras 15 minutos de inactividad** y se vuelve a cargar al dictar (#12). Incluye un script de medición, `scripts/measure-idle-unload.cjs` (#15).
+- Las grabaciones **sin voz se descartan antes de transcribir**: no se llama al motor, no queda entrada en el historial y se muestra el aviso "No se detectó voz" (#14).
+
+### Cambiado
+
+- La decisión de "sin voz" (#16) ya no suma muestras sueltas: solo cuentan los tramos de al menos 160 ms por encima de un umbral derivado del ruido de la propia grabación, y deben sumar 300 ms. Una voz baja sobre ruido constante ya no se descarta y los golpes o clics aislados ya no cuentan como voz. El auto-stop no cambia. Límite aceptado: el ruido estacionario por encima de ~0.0075 pasa el filtro y se transcribe, como antes de la puerta.
+- `scripts/measure-voice-levels.cjs` incluye una fase nueva de voz baja con ruido de fondo y usa el mismo criterio que la app.
+
+### Corregido
+
+- La comprobación del paquete en CI se alinea con la política de descarga de modelos de 1.2.3 (#10).
+
 ## [1.2.7] - 2026-08-29
 
 ### Corregido
