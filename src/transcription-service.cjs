@@ -50,7 +50,10 @@ function createTranscriptionService(options) {
     onDownloadState = () => {},
     allowRemoteModels = false,
     importTransformers = () => import("@huggingface/transformers"),
-    logger = console
+    logger = console,
+    idleUnloadMs = 0,
+    setTimer = setTimeout,
+    clearTimer = clearTimeout
   } = options;
   let transcriber;
   let transcriberProfile;
@@ -64,7 +67,36 @@ function createTranscriptionService(options) {
   let lastModelError;
   let lastDeviceFallback;
   let lastTranscriptionMetrics;
+  let idleTimer;
   const sessions = new Map();
+
+  function clearIdleTimer() {
+    if (idleTimer === undefined) return;
+    clearTimer(idleTimer);
+    idleTimer = undefined;
+  }
+
+  async function unloadIfIdle() {
+    idleTimer = undefined;
+    if (sessions.size > 0 || transcriberPromise) return;
+    await unloadTranscriber();
+  }
+
+  function armIdleTimer() {
+    clearIdleTimer();
+    if (!(idleUnloadMs > 0) || !transcriber || sessions.size > 0) return;
+    idleTimer = setTimer(() => { unloadIfIdle().catch((error) => logger.warn("Idle model unload failed:", error)); }, idleUnloadMs);
+    if (idleTimer && typeof idleTimer.unref === "function") idleTimer.unref();
+  }
+
+  async function unloadTranscriber() {
+    const current = transcriber;
+    transcriber = undefined;
+    transcriberProfile = undefined;
+    transcriberDevice = undefined;
+    transcriberRequestedDevice = undefined;
+    if (current && typeof current.dispose === "function") await current.dispose();
+  }
 
   async function getTranscriber(profileId, requestedDevice = "cpu") {
     const profile = resolveProfile(profileId);
@@ -166,6 +198,7 @@ function createTranscriptionService(options) {
   }
 
   function start(configuration = {}) {
+    clearIdleTimer();
     const id = crypto.randomUUID();
     const profile = resolveProfile(configuration.profileId);
     const device = configuration.device || "cpu";
@@ -203,6 +236,14 @@ function createTranscriptionService(options) {
     if (!session || session.cancelled) throw new Error("Transcription session is not active.");
     sessions.delete(sessionId);
     const profile = resolveProfile(session.profileId);
+    try {
+      return await transcribeSession(session, profile);
+    } finally {
+      armIdleTimer();
+    }
+  }
+
+  async function transcribeSession(session, profile) {
     const capturedSamples = concatenateAudio(session.chunks);
     const resampledSamples = session.sampleRate === 16000 ? capturedSamples : resampleAudio(capturedSamples, session.sampleRate);
     const samples = trimEdgeSilence(resampledSamples);
@@ -254,6 +295,7 @@ function createTranscriptionService(options) {
     if (!session) return false;
     session.cancelled = true;
     sessions.delete(sessionId);
+    armIdleTimer();
     return true;
   }
 
@@ -264,12 +306,9 @@ function createTranscriptionService(options) {
   }
 
   async function reset() {
+    clearIdleTimer();
     sessions.clear();
-    if (transcriber && typeof transcriber.dispose === "function") await transcriber.dispose();
-    transcriber = undefined;
-    transcriberProfile = undefined;
-    transcriberDevice = undefined;
-    transcriberRequestedDevice = undefined;
+    await unloadTranscriber();
     transcriberPromise = undefined;
     loadingProfile = undefined;
     loadingDevice = undefined;

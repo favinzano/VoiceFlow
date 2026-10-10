@@ -35,6 +35,8 @@ const { assertHoldModeAvailable, assertKeyHookPermissions } = require("./key-hoo
 const { resolveWhisperProfile } = require("./whisper-profiles.cjs");
 const { loadModelWithRetry } = require("./model-recovery.cjs");
 const { createTranscriptionMetricsStore } = require("./transcription-metrics.cjs");
+// Libera la RAM del modelo tras 15 min sin dictar; el siguiente dictado lo recarga.
+const MODEL_IDLE_UNLOAD_MS = 15 * 60 * 1000;
 const { createTranscriptionService } = require("./transcription-service.cjs");
 const { createModelPackManager } = require("./model-pack-manager.cjs");
 const { createHistoryWriteQueue } = require("./history-write-queue.cjs");
@@ -1079,6 +1081,7 @@ app.whenReady().then(async () => {
     // verifique que sin descarga ni paquete offline la app falla cerrada.
     allowRemoteModels: !(selfTestPaths && process.argv.includes("--self-test-local-only")),
     onDownloadState: setModelDownloadActive,
+    idleUnloadMs: MODEL_IDLE_UNLOAD_MS,
     onProgress: (progress) => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
       mainWindow.webContents.send("model:progress", progress);
