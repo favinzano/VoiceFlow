@@ -1,6 +1,6 @@
 {
   "status": "owner_override",
-  "appVersion": "1.2.7",
+  "appVersion": "1.2.8",
   "termsVersion": "2026-07-17-beta-1",
   "legalEmail": "legal@felipeavinzano.com",
   "legalEmailCheck": {
@@ -32,9 +32,9 @@
   },
   "ownerOverride": {
     "authorizedBy": "Felipe Avinzano",
-    "authorizedAt": "2026-08-29T13:37:30.198Z",
-    "scopeVersion": "1.2.7",
-    "reason": "El propietario autoriza publicar 1.2.7 (mueve la marca de la barra de título a la esquina superior derecha en macOS para que los controles de ventana del sistema no la solapen; sigue sin notarización Apple ni Authenticode) como latest y asume la responsabilidad por los requisitos externos aún pendientes.",
+    "authorizedAt": "2026-10-10T03:02:29.847Z",
+    "scopeVersion": "1.2.8",
+    "reason": "El propietario autoriza publicar 1.2.8 (puerta de sin voz por tramos, alias del diccionario, hold-to-talk en macOS y Linux y descarga del modelo por inactividad; sigue sin notarización Apple ni Authenticode) como latest y asume la responsabilidad por los requisitos externos aún pendientes.",
     "acknowledgesIncompleteLegalReview": true,
     "acknowledgesUnverifiedOperationalRequirements": true,
     "acknowledgesUnsignedArtifacts": true,
