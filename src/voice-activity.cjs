@@ -1,3 +1,7 @@
+const NOMINAL_SAMPLE_INTERVAL_MS = 100;
+// A stalled sampler (e.g. a throttled worklet) must not count as continuous speech.
+const MAX_SAMPLE_INTERVAL_MS = 250;
+
 function createVoiceActivityDetector(options = {}) {
   const minimumSpeechThreshold = options.speechThreshold ?? 0.008;
   const minimumSilenceThreshold = options.silenceThreshold ?? 0.004;
@@ -7,14 +11,28 @@ function createVoiceActivityDetector(options = {}) {
   let silenceStartedAt;
   let lastNoiseFloorUpdateAt;
   let stopped = false;
+  let speechMs = 0;
+  let lastUpdateAt;
 
   return {
+    getSummary() {
+      return { speechDetected, speechMs };
+    },
     update(rms, now = Date.now()) {
-      if (stopped) return false;
+      const sampleIntervalMs = lastUpdateAt === undefined
+        ? NOMINAL_SAMPLE_INTERVAL_MS
+        : Math.min(MAX_SAMPLE_INTERVAL_MS, Math.max(0, now - lastUpdateAt));
+      lastUpdateAt = now;
       const speechThreshold = Math.max(minimumSpeechThreshold, noiseFloor * 3);
+      if (stopped) {
+        // Recording may continue after the stop point (auto-stop off): keep the speech summary honest.
+        if (rms >= speechThreshold) speechMs += sampleIntervalMs;
+        return false;
+      }
       const silenceThreshold = Math.max(minimumSilenceThreshold, noiseFloor * 1.8);
       if (rms >= speechThreshold) {
         speechDetected = true;
+        speechMs += sampleIntervalMs;
         silenceStartedAt = undefined;
         return false;
       }

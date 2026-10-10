@@ -16,7 +16,7 @@ alcance.
 | Observabilidad | Implementado | Latencia, factor de tiempo real, memoria RSS y dispositivo efectivo |
 | Aceleración | Experimental | DirectML seleccionable con fallback automático a CPU |
 | Historial | Implementado | Repositorio JSON versionado, escritura atómica, backup, recuperación, búsqueda y exportación |
-| Detección de silencio | Implementado | VAD local adaptativo con voz previa obligatoria y periodo de gracia configurable |
+| Detección de silencio | Implementado | VAD local adaptativo con voz previa obligatoria y periodo de gracia configurable; una grabación con menos de 300 ms de voz se descarta sin llamar al motor |
 | Pegado | Implementado, compilación pendiente | Helper Windows x64 con APIs Win32 directas y fallback explícito a portapapeles |
 | Motores | Implementado | Benchmark reproducible de WER, latencia y RTF para los perfiles integrados |
 | Validación humana | Gate activo | Matriz de 12 casos obligatoria antes del release firmado |
@@ -69,9 +69,20 @@ compatible y completa 100 transcripciones sin fuga sostenida de memoria.
 - VAD local con piso de ruido adaptativo y periodo de gracia configurable.
 - Requiere detectar voz antes de considerar una parada.
 - No envía silencios iniciales al motor de transcripción.
+- Puerta de "sin voz" (`src/speech-gate.cjs`): si el detector acumula menos de
+  300 ms de voz, la grabación se descarta sin llamar al motor, sin entrada en el
+  historial y con aviso en el overlay. Funciona también con el auto-stop apagado.
 
 **Criterio de salida:** cero transcripciones ante silencio y menos de 1% de
 cortes prematuros en el corpus de pausas.
+
+**Estado:** el corpus sintético (`src/voice-activity-corpus.test.cjs`, 2000
+dictados por perfil de sala, periodo de gracia de 1.8 s) da 0 cortes prematuros.
+Es una guardia de regresión: sus pausas máximas (1.68 s) son menores que el
+periodo de gracia, así que no sustituye una medición con voz humana real. Con
+1.2 s el mismo corpus corta el 12% de los dictados. Límite conocido: un susurro
+mucho más bajo que la "voz baja" medida (p90 0.023 con el umbral en 0.008) puede
+descartarse. Diseño en `docs/superpowers/specs/2026-10-09-no-speech-gate-design.md`.
 
 ## P1: Integración Nativa de Windows
 
