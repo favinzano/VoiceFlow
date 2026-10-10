@@ -596,7 +596,7 @@ function interruptRecording(reason) {
 
 function handleVoiceLevel(rms) {
   if (!recording) return;
-  // Always feed the detector: the speech gate reads its summary even when auto-stop is off.
+  // Always feed the detector: the speech gate reads its level history even when auto-stop is off.
   const silenceReached = voiceActivityDetector?.update(rms);
   if (!silenceReached || !settings.autoStopEnabled || autoStopPending) return;
   autoStopPending = true;
@@ -731,7 +731,7 @@ async function finishRecording() {
   const sessionId = transcriptionSessionId;
   await flushCapture();
   // Must be read before releaseAudioCapture() drops the detector.
-  const speechSummary = voiceActivityDetector?.getSummary();
+  const levelHistory = voiceActivityDetector?.getLevels();
   const preprocessStartedAt = performance.now();
   try {
     lastAudio = collectRecording();
@@ -754,7 +754,7 @@ async function finishRecording() {
     await rejectRecording(sessionId, "No detectamos voz. Revisa el micrófono seleccionado.", "No detectamos voz. Revisa el micrófono.");
     return;
   }
-  if (!evaluateSpeechGate(speechSummary).hasSpeech) {
+  if (!evaluateSpeechGate(levelHistory).hasSpeech) {
     // Discarded without a trace: no engine call, no history entry, nothing left to reprocess.
     lastAudio = undefined;
     await rejectRecording(sessionId, "No se detectó voz. Intenta de nuevo.", "No se detectó voz.");

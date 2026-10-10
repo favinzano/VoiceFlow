@@ -21,7 +21,8 @@
     const PHASES = [
       { name: "ambiente", seconds: 4, prompt: "Silencio. No hables." },
       { name: "voz-normal", seconds: 6, prompt: "Habla con tu volumen normal de dictado. Lee cualquier texto en voz alta." },
-      { name: "voz-baja", seconds: 6, prompt: "Habla más bajo, como en una oficina compartida o de noche." }
+      { name: "voz-baja", seconds: 6, prompt: "Habla más bajo, como en una oficina compartida o de noche." },
+      { name: "voz-baja-ruido", seconds: 8, prompt: "Pon ruido de fondo constante (ventilador, lluvia o música suave en tu altavoz) y habla bajo por encima." }
     ];
     const GET_READY_SECONDS = 3;
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

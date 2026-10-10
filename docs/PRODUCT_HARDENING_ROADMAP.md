@@ -69,9 +69,12 @@ compatible y completa 100 transcripciones sin fuga sostenida de memoria.
 - VAD local con piso de ruido adaptativo y periodo de gracia configurable.
 - Requiere detectar voz antes de considerar una parada.
 - No envía silencios iniciales al motor de transcripción.
-- Puerta de "sin voz" (`src/speech-gate.cjs`): si el detector acumula menos de
-  300 ms de voz, la grabación se descarta sin llamar al motor, sin entrada en el
-  historial y con aviso en el overlay. Funciona también con el auto-stop apagado.
+- Puerta de "sin voz" (`src/speech-gate.cjs`): decide con el historial de niveles
+  de la grabación. Solo cuentan los tramos de al menos 160 ms por encima de un
+  umbral derivado del ruido de la propia grabación (2 × piso, entre 0.005 y
+  0.008); si suman menos de 300 ms, la grabación se descarta sin llamar al
+  motor, sin entrada en el historial y con aviso en el overlay. Funciona también
+  con el auto-stop apagado.
 
 **Criterio de salida:** cero transcripciones ante silencio y menos de 1% de
 cortes prematuros en el corpus de pausas.
@@ -80,9 +83,16 @@ cortes prematuros en el corpus de pausas.
 dictados por perfil de sala, periodo de gracia de 1.8 s) da 0 cortes prematuros.
 Es una guardia de regresión: sus pausas máximas (1.68 s) son menores que el
 periodo de gracia, así que no sustituye una medición con voz humana real. Con
-1.2 s el mismo corpus corta el 12% de los dictados. Límite conocido: un susurro
-mucho más bajo que la "voz baja" medida (p90 0.023 con el umbral en 0.008) puede
-descartarse. Diseño en `docs/superpowers/specs/2026-10-09-no-speech-gate-design.md`.
+1.2 s el mismo corpus corta el 12% de los dictados. Los dos límites
+conocidos de la primera versión (voz baja sobre ruido constante y picos aislados
+que sumaban voz) están resueltos: el corpus del gate
+(`src/speech-gate-corpus.test.cjs`) da 100% de voz aceptada, 100% de ruido y de
+8/15/30 picos descartados, y la medición con micrófono real pasa las cuatro
+fases. Límite aceptado: ruido estacionario por encima de ~0.0075 pasa el gate y
+se transcribe (el comportamiento previo a la puerta); un susurro mucho más bajo
+que la "voz baja" medida aún puede descartarse. Diseño en
+`docs/superpowers/specs/2026-10-09-no-speech-gate-design.md` y
+`docs/superpowers/specs/2026-10-10-no-speech-gate-robustness-design.md`.
 
 ## P1: Integración Nativa de Windows
 

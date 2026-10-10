@@ -4,13 +4,13 @@
 const path = require("node:path");
 const { app, BrowserWindow, ipcMain, session } = require("electron");
 const { createVoiceActivityDetector } = require("../src/voice-activity.cjs");
-const { evaluateSpeechGate, DEFAULT_MINIMUM_SPEECH_MS } = require("../src/speech-gate.cjs");
+const { evaluateSpeechGate, DEFAULT_MINIMUM_SPEECH_MS, DEFAULT_MINIMUM_RUN_MS } = require("../src/speech-gate.cjs");
 
 const SPEECH_THRESHOLD = 0.008;
 const COMFORTABLE_MARGIN = 2;
 const NOISY_ROOM_P90 = 0.004;
 const OVERALL_TIMEOUT_MS = 90_000;
-const SPEECH_PHASES = ["voz-normal", "voz-baja"];
+const SPEECH_PHASES = ["voz-normal", "voz-baja", "voz-baja-ruido"];
 
 const args = process.argv.slice(2);
 const micArgIndex = args.indexOf("--mic");
@@ -29,9 +29,10 @@ function percentile(sortedValues, fraction) {
 function analyzePhase(samples) {
   const levels = samples.map(([, rms]) => rms).sort((a, b) => a - b);
   const intervals = samples.slice(1).map(([at], index) => at - samples[index][0]).sort((a, b) => a - b);
+  // Same path as the app: the detector keeps the level history and the gate decides from it.
   const detector = createVoiceActivityDetector({ silenceTimeoutMs: Number.MAX_SAFE_INTEGER });
   samples.forEach(([at, rms]) => detector.update(rms, at));
-  const gate = evaluateSpeechGate(detector.getSummary());
+  const gate = evaluateSpeechGate(detector.getLevels());
   return {
     count: levels.length,
     p50: percentile(levels, 0.5),
@@ -43,12 +44,19 @@ function analyzePhase(samples) {
   };
 }
 
+// The gate's effective level threshold adapts to each recording's noise floor, so the margin is
+// measured in what the gate actually decides on: detected speech time against its minimum.
+function hasMargin(stats) {
+  return stats.gate.speechMs >= DEFAULT_MINIMUM_SPEECH_MS * COMFORTABLE_MARGIN;
+}
+
 function verdictFor(name, stats) {
   if (name === "ambiente") {
+    if (stats.gate.hasSpeech) return "AVISO (el gate dejaría pasar solo este ruido)";
     return stats.p90 >= NOISY_ROOM_P90 ? "RUIDOSO (el piso de ruido es alto)" : "OK";
   }
   if (!stats.gate.hasSpeech) return "FALLA (el gate descartaría este dictado)";
-  return stats.p90 >= SPEECH_THRESHOLD * COMFORTABLE_MARGIN ? "OK" : "JUSTO (margen menor a 2x)";
+  return hasMargin(stats) ? "OK" : "JUSTO (voz detectada menor a 2x el mínimo del gate)";
 }
 
 function fmt(value) {
@@ -58,7 +66,7 @@ function fmt(value) {
 function printReport(phases, info) {
   console.log(`\nMicrófono: ${info.deviceLabel}  |  sampleRate: ${info.sampleRate}`);
   console.log(`Entradas disponibles (usa --mic "texto" para elegir una):\n${info.devices.map((label) => `  - ${label}`).join("\n")}`);
-  console.log(`Umbral de voz del detector: ${SPEECH_THRESHOLD}  |  mínimo del gate: ${DEFAULT_MINIMUM_SPEECH_MS} ms\n`);
+  console.log(`Umbral de referencia del margen: ${SPEECH_THRESHOLD}  |  mínimo del gate: ${DEFAULT_MINIMUM_SPEECH_MS} ms en tramos de ${DEFAULT_MINIMUM_RUN_MS} ms o más\n`);
   const header = ["fase", "p50", "p90", "max", "% >= umbral", "cadencia", "voz (ms)", "veredicto"];
   const rows = Object.entries(phases).map(([name, stats]) => [
     name, fmt(stats.p50), fmt(stats.p90), fmt(stats.max), `${stats.aboveThresholdPct.toFixed(0)}%`,
@@ -72,11 +80,11 @@ function printReport(phases, info) {
 
   const worst = SPEECH_PHASES.map((name) => phases[name]).filter(Boolean);
   const failing = worst.some((stats) => !stats.gate.hasSpeech);
-  const tight = worst.some((stats) => stats.p90 < SPEECH_THRESHOLD * COMFORTABLE_MARGIN);
+  const tight = worst.some((stats) => !hasMargin(stats));
   console.log(
-    failing ? "\nRESULTADO: el umbral actual rechazaría tu voz. Hay que parar y decidir antes de cablear T4."
-      : tight ? "\nRESULTADO: pasa, pero con poco margen. Conviene decidir antes de cablear T4."
-        : "\nRESULTADO: tu voz normal y baja supera el umbral con margen. Se puede seguir con T4."
+    failing ? "\nRESULTADO: el gate descartaría tu voz. Hay que parar y decidir antes de seguir con T6."
+      : tight ? "\nRESULTADO: pasa, pero con poco margen. Conviene decidir antes de seguir con T6."
+        : "\nRESULTADO: tu voz normal, baja y baja con ruido de fondo pasa el gate con margen. Se puede seguir con T6."
   );
 }
 
@@ -96,7 +104,7 @@ app.whenReady().then(() => {
 
   window = new BrowserWindow({
     width: 620,
-    height: 360,
+    height: 400,
     title: "Medición de niveles de voz",
     autoHideMenuBar: true,
     webPreferences: {

@@ -13,12 +13,22 @@ function createVoiceActivityDetector(options = {}) {
   let stopped = false;
   let speechMs = 0;
   let lastUpdateAt;
+  const levels = [];
+  const times = [];
 
   return {
     getSummary() {
       return { speechDetected, speechMs };
     },
+    getLevels() {
+      return { levels: [...levels], times: [...times] };
+    },
     update(rms, now = Date.now()) {
+      // A corrupt sample must not poison the history the speech gate decides from.
+      if (Number.isFinite(rms) && Number.isFinite(now)) {
+        levels.push(rms);
+        times.push(now);
+      }
       const sampleIntervalMs = lastUpdateAt === undefined
         ? NOMINAL_SAMPLE_INTERVAL_MS
         : Math.min(MAX_SAMPLE_INTERVAL_MS, Math.max(0, now - lastUpdateAt));
