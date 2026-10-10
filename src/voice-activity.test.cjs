@@ -80,4 +80,33 @@ assert.equal(speechAfterStop.update(0.03, 740), false, "a stopped detector never
 assert.equal(speechAfterStop.update(0.03, 780), false);
 assert.deepEqual(speechAfterStop.getSummary(), { speechDetected: true, speechMs: 100 + 40 + 40 });
 
+const emptyHistory = createVoiceActivityDetector();
+assert.deepEqual(emptyHistory.getLevels(), { levels: [], times: [] });
+
+const history = createVoiceActivityDetector({ silenceTimeoutMs: 500 });
+const expectedLevels = [0.02, 0.001, 0.001, 0.03, 0.002];
+const expectedTimes = [0, 100, 700, 740, 780];
+expectedLevels.forEach((level, index) => history.update(level, expectedTimes[index]));
+assert.deepEqual(
+  history.getLevels(),
+  { levels: expectedLevels, times: expectedTimes },
+  "one pair per update call, including those after the stop point"
+);
+
+const historyCopy = history.getLevels();
+historyCopy.levels.push(1);
+historyCopy.times.push(1);
+historyCopy.levels[0] = 99;
+assert.deepEqual(history.getLevels().levels, expectedLevels, "mutating a returned history does not alter the detector");
+assert.deepEqual(history.getLevels().times, expectedTimes);
+assert.deepEqual(history.getSummary(), { speechDetected: true, speechMs: 100 + 40 }, "history does not change the summary");
+
+const corruptSamples = createVoiceActivityDetector();
+corruptSamples.update(0.001, 0);
+corruptSamples.update(Number.NaN, 40);
+corruptSamples.update(0.002, Number.NaN);
+corruptSamples.update(Infinity, 80);
+corruptSamples.update(0.003, 120);
+assert.deepEqual(corruptSamples.getLevels(), { levels: [0.001, 0.003], times: [0, 120] }, "non-finite samples stay out of the history");
+
 console.log("Voice activity: all checks passed.");

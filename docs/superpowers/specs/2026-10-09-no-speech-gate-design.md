@@ -1,6 +1,6 @@
 # Spec: Puerta de "sin voz" (no-speech gate) antes de transcribir
 
-Estado: **aprobada 2026-10-09** (umbral 300 ms; grabaciones sin voz se descartan sin rastro) · Base: v1.2.7 (`main` tras #13) · Roadmap: *P1 Rendimiento y Captura → Detección automática de silencio*
+Estado: **aprobada 2026-10-09; criterio de decisión sustituido por `2026-10-10-no-speech-gate-robustness-design.md`** (el gate ya no usa `getSummary()` sino el historial de niveles, con tramos de 160 ms y umbral derivado del ruido de la grabación; los dos límites conocidos quedan resueltos) (umbral 300 ms; grabaciones sin voz se descartan sin rastro) · Base: v1.2.7 (`main` tras #13) · Roadmap: *P1 Rendimiento y Captura → Detección automática de silencio*
 
 Correcciones tras leer el código para el plan:
 - La suposición 4 era errónea: `handleVoiceLevel` sale antes de llamar a `update()` cuando `autoStopEnabled` es false, así que el detector hoy **no** se alimenta con el auto-stop apagado. El plan lo cambia para que el detector siempre reciba el nivel.
