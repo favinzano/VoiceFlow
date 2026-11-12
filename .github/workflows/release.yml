@@ -347,6 +347,27 @@ jobs:
           # CPUs, so it is the auto-update channel; Legacy stays a manual download.
           cp release-assets/felipe-avinzanovoiceflow-avx2-windows-x64/latest.yml release-assets/latest.yml
 
+          # Versionless copies of each installer, so the website can link to
+          # /releases/latest/download/<name> and always serve the newest build.
+          # The versioned files stay untouched: latest*.yml and electron-updater
+          # keep pointing at them, so auto-update is not affected.
+          set -euo pipefail
+          mkdir -p stable-assets
+          copy_stable() {
+            local pattern="$1" target="$2" matches
+            mapfile -t matches < <(find release-assets -type f -name "$pattern")
+            if [ "${#matches[@]}" -ne 1 ]; then
+              echo "Expected exactly one asset matching $pattern, found ${#matches[@]}." >&2
+              exit 1
+            fi
+            cp "${matches[0]}" "stable-assets/$target"
+          }
+          copy_stable "felipe-avinzanovoiceflow-Setup-*-AVX2-x64.exe" "felipe-avinzanovoiceflow-Setup-AVX2-x64.exe"
+          copy_stable "felipe-avinzanovoiceflow-Setup-*-Legacy-x64.exe" "felipe-avinzanovoiceflow-Setup-Legacy-x64.exe"
+          copy_stable "felipe-avinzanovoiceflow-Setup-*-arm64.dmg" "felipe-avinzanovoiceflow-Setup-arm64.dmg"
+          copy_stable "felipe-avinzanovoiceflow-Setup-*-x64.dmg" "felipe-avinzanovoiceflow-Setup-x64.dmg"
+          copy_stable "felipe-avinzanovoiceflow-Setup-*.AppImage" "felipe-avinzanovoiceflow-Setup-x86_64.AppImage"
+
           # electron-updater (default allowPrerelease=false, matching this app's
           # plain-semver versioning) only ever considers the release GitHub's API
           # reports at /releases/latest, which excludes prereleases. Marking this
@@ -362,6 +383,7 @@ jobs:
             release-assets/macos/latest-mac.yml \
             release-assets/linux/*.AppImage \
             release-assets/linux/latest-linux.yml \
+            stable-assets/* \
             --repo "favinzano/VoiceFlow" \
             --title "felipe avinzano VoiceFlow $RELEASE_TAG" \
             --generate-notes \
