@@ -16,6 +16,14 @@ Los instaladores de cada versión están en [Releases](https://github.com/favinz
 | macOS (Intel) | `felipe-avinzanovoiceflow-Setup-1.2.8-x64.dmg` | Build nativo x64. |
 | Linux x86_64 | `felipe-avinzanovoiceflow-Setup-1.2.8-x86_64.AppImage` | Ejecutable portable, no requiere instalación. |
 
+Cada release también publica copias de los instaladores sin número de versión. Estos enlaces descargan siempre la última versión:
+
+- Windows x64: https://github.com/favinzano/VoiceFlow/releases/latest/download/felipe-avinzanovoiceflow-Setup-AVX2-x64.exe
+- Windows x64 (Legacy): https://github.com/favinzano/VoiceFlow/releases/latest/download/felipe-avinzanovoiceflow-Setup-Legacy-x64.exe
+- macOS (Apple Silicon): https://github.com/favinzano/VoiceFlow/releases/latest/download/felipe-avinzanovoiceflow-Setup-arm64.dmg
+- macOS (Intel): https://github.com/favinzano/VoiceFlow/releases/latest/download/felipe-avinzanovoiceflow-Setup-x64.dmg
+- Linux x86_64: https://github.com/favinzano/VoiceFlow/releases/latest/download/felipe-avinzanovoiceflow-Setup-x86_64.AppImage
+
 Ninguno de los instaladores tiene firma de código de un desarrollador identificado (Windows sin Authenticode, macOS sin notarización de Apple). El build de macOS sí lleva una **firma ad-hoc**, necesaria para que los binarios Apple Silicon (arm64) puedan ejecutarse:
 
 - **Windows** mostrará la advertencia de SmartScreen "editor desconocido" — usa "Más información" → "Ejecutar de todas formas".
