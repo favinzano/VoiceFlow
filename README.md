@@ -1,4 +1,4 @@
-# felipe avinzano VoiceFlow
+# VoiceFlow by felipeavinzano.com
 
 > **Excepción temporal para 1.2.8:** el propietario autorizó expresamente el lanzamiento público de esta versión y asumió los requisitos externos todavía pendientes. Esta excepción no equivale a aprobación jurídica y no se aplica a versiones posteriores; consulta `docs/LEGAL_RELEASE_GATE.md`.
 
